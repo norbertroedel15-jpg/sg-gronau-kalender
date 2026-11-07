@@ -663,3 +663,21 @@
     padding-top: 3.25rem;
   }
 }
+
+.status { padding: 1rem 1.5rem; }
+.sync-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; padding: 1rem 1.5rem 0; color: var(--muted); font-size: .85rem; }
+select, .secondary { font: inherit; background: white; border: 1px solid var(--line); border-radius: 4px; padding: .6rem .8rem; color: var(--pitch); }
+.actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
+.actions .btn-primary { margin: 0; }
+.danger { color: var(--spiel); }
+dialog { width: min(32rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); border: 1px solid var(--line); border-radius: 12px; padding: 1.5rem; background: var(--field); color: var(--ink); box-shadow: 0 24px 80px #0c3d2e55; }
+dialog::backdrop { background: #0c241bb3; }
+.edit-form { display: grid; gap: .85rem; }
+.edit-form h2, .edit-form h3, .edit-form p { margin: 0; }
+.edit-form label { display: grid; gap: .35rem; font-weight: 600; font-size: .9rem; }
+.edit-form input, .edit-form select { width: 100%; min-width: 0; padding: .8rem; border: 1px solid var(--line); border-radius: 4px; background: white; font: inherit; }
+.form-columns { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--grass); outline-offset: 3px; }
+button:disabled { opacity: .6; cursor: wait; }
+.edit-form li { overflow-wrap: anywhere; margin-bottom: .5rem; }
+@media(prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

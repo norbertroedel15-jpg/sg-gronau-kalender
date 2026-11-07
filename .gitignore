@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Private shared calendar data and configuration
+data/
+.env
+.env.*
+!.env.example

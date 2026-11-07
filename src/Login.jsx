@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { api } from './api.js'
 import BrandMark from './BrandMark.jsx'
 
 export default function Login({ onLogin }) {
@@ -6,18 +7,18 @@ export default function Login({ onLogin }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
-  function handleSubmit(e) {
+  const [busy, setBusy] = useState(false)
+  async function handleSubmit(e) {
     e.preventDefault()
     if (!email.trim() || !password.trim()) {
       setError('Bitte E-Mail und Passwort eingeben.')
       return
     }
     setError('')
-    const local = email.split('@')[0] || 'Mitglied'
-    const name = local
-      .replace(/[._-]+/g, ' ')
-      .replace(/\b\w/g, (c) => c.toUpperCase())
-    onLogin(name)
+    setBusy(true)
+    try { const result = await api('login', 'POST', { email, password }); onLogin(result.user) }
+    catch (err) { setError(err.message) }
+    finally { setBusy(false) }
   }
 
   return (
@@ -29,7 +30,7 @@ export default function Login({ onLogin }) {
 
       <form className="login-form" onSubmit={handleSubmit} noValidate>
         <h2>Anmelden</h2>
-        <p className="login-hint">Vorschau — beliebige Angaben reichen zum Weiterklicken.</p>
+        <p className="login-hint">Mit deinem Vereinskonto anmelden. Zugang erhältst du von der Vereinsverwaltung.</p>
 
         <label>
           E-Mail
@@ -55,8 +56,8 @@ export default function Login({ onLogin }) {
 
         {error ? <p className="login-error" role="alert">{error}</p> : null}
 
-        <button type="submit" className="btn-primary">
-          Zum Kalender
+        <button type="submit" className="btn-primary" disabled={busy}>
+          {busy ? 'Anmeldung läuft …' : 'Zum Kalender'}
         </button>
       </form>
     </div>

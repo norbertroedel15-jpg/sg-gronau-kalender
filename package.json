@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server/server.mjs",
+    "server": "node --watch server/server.mjs",
+    "admin": "node server/server.mjs --create-admin",
+    "test": "node --test server/*.test.mjs"
   },
   "dependencies": {
     "react": "^19.3.1",
@@ -19,5 +23,8 @@
     "@vitejs/plugin-react": "^6.1.2",
     "oxlint": "^1.90.0",
     "vite": "^8.3.6"
+  },
+  "engines": {
+    "node": ">=24.0.0"
   }
 }

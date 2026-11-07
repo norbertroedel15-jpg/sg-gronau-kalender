@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { api } from './api.js'
+import EventForm from './EventForm.jsx'
+import Members from './Members.jsx'
 import BrandMark from './BrandMark.jsx'
 import {
   MONTH_NAMES,
-  SAMPLE_EVENTS,
   TYPE_LABELS,
   WEEKDAYS,
 } from './data.js'
@@ -34,8 +36,40 @@ function buildMonthGrid(year, month) {
 }
 
 export default function Calendar({ user, onLogout }) {
-  const [cursor, setCursor] = useState(() => new Date(2026, 10, 1)) // Nov 2026
+  const [cursor, setCursor] = useState(() => new Date())
   const [selectedId, setSelectedId] = useState(null)
+
+  const [events, setEvents] = useState([])
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(null)
+  const [membersOpen, setMembersOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [filter, setFilter] = useState('')
+  async function load() {
+    try { const r = await api('events'); setEvents(r.events); setError('') }
+    catch(e) { if (e.status === 401) onLogout(); else setError(e.message) }
+    finally { setLoading(false) }
+  }
+  useEffect(() => {
+    let active = true
+    async function refresh() {
+      try { const r = await api('events'); if (active) { setEvents(r.events); setError('') } }
+      catch(e) { if (active) { if (e.status === 401) onLogout(); else setError(e.message) } }
+      finally { if (active) setLoading(false) }
+    }
+    refresh(); const timer = setInterval(refresh, 15000)
+    return () => { active = false; clearInterval(timer) }
+  }, [onLogout])
+  async function logout() { try { await api('logout','POST',{}); onLogout() } catch(e) { setError(e.message) } }
+  async function remove() {
+    setBusy(true)
+    try { await api(`events/${selected.id}`,'DELETE',{version:selected.version}); setSelectedId(null); setDeleting(false); await load() }
+    catch(e) { setDeleting(false); await load(); setError(e.message) }
+    finally { setBusy(false) }
+  }
+  const visibleEvents = useMemo(() => events.filter(e => !filter || e.type === filter), [events, filter])
 
   const year = cursor.getFullYear()
   const month = cursor.getMonth()
@@ -43,24 +77,24 @@ export default function Calendar({ user, onLogout }) {
 
   const eventsByDay = useMemo(() => {
     const map = {}
-    for (const event of SAMPLE_EVENTS) {
+    for (const event of visibleEvents) {
       if (!map[event.date]) map[event.date] = []
       map[event.date].push(event)
     }
     return map
-  }, [])
+  }, [visibleEvents])
 
   const monthEvents = useMemo(
     () =>
-      SAMPLE_EVENTS.filter((e) => {
+      visibleEvents.filter((e) => {
         const [y, m] = e.date.split('-').map(Number)
         return y === year && m === month + 1
       }).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)),
-    [year, month],
+    [year, month, visibleEvents],
   )
 
-  const selected = SAMPLE_EVENTS.find((e) => e.id === selectedId) || null
-  const todayKey = '2026-11-07'
+  const selected = visibleEvents.find((e) => e.id === selectedId) || null
+  const [todayKey] = useState(() => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date()))
 
   function shiftMonth(delta) {
     setCursor(new Date(year, month + delta, 1))
@@ -72,8 +106,9 @@ export default function Calendar({ user, onLogout }) {
       <header className="cal-top">
         <BrandMark variant="header" />
         <div className="cal-user">
-          <span className="cal-user-name">{user}</span>
-          <button type="button" className="btn-ghost" onClick={onLogout}>
+          {user.role === 'admin' && <button type="button" className="btn-ghost" onClick={() => setMembersOpen(true)}>Zugänge verwalten</button>}
+          <span className="cal-user-name">{user.name}</span>
+          <button type="button" className="btn-ghost" onClick={logout}>
             Abmelden
           </button>
         </div>
@@ -96,11 +131,13 @@ export default function Calendar({ user, onLogout }) {
           <span className="legend-item type-spiel">Spiel</span>
           <span className="legend-item type-sitzung">Sitzung</span>
         </div>
-        <button type="button" className="btn-primary btn-new" disabled title="Nur Vorschau">
+        <button type="button" className="btn-primary btn-new" onClick={() => setEditing({ date: toKey(year, month, 1) })}>
           + Neuer Termin
         </button>
       </section>
 
+      <div className="sync-bar"><label>Terminart <select value={filter} onChange={e => setFilter(e.target.value)}><option value="">Alle Termine</option>{Object.entries(TYPE_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select></label><span>{loading ? 'Termine werden geladen …' : 'Gemeinsamer Kalender · Abgleich alle 15 Sekunden'}</span><button type="button" className="secondary" onClick={load}>Aktualisieren</button></div>
+      {error && <p className="status login-error" role="alert">{error}</p>}
       <div className="cal-layout">
         <div className="month-grid" role="grid" aria-label={`Monatsansicht ${MONTH_NAMES[month]} ${year}`}>
           <div className="weekday-row">
@@ -127,7 +164,7 @@ export default function Calendar({ user, onLogout }) {
                         <button
                           type="button"
                           className={`event-chip type-${ev.type}${selectedId === ev.id ? ' is-active' : ''}`}
-                          onClick={() => setSelectedId(ev.id)}
+                          onClick={() => { setSelectedId(ev.id); setDeleting(false) }}
                         >
                           <span className="event-time">{ev.time}</span>
                           <span className="event-title">{ev.title}</span>
@@ -143,13 +180,14 @@ export default function Calendar({ user, onLogout }) {
 
         <aside className="side-panel">
           <h3>Termine im Monat</h3>
+          {!loading && monthEvents.length === 0 && <p>Keine Termine in diesem Monat.</p>}
           <ul className="event-list">
             {monthEvents.map((ev) => (
               <li key={ev.id}>
                 <button
                   type="button"
                   className={`event-row${selectedId === ev.id ? ' is-active' : ''}`}
-                  onClick={() => setSelectedId(ev.id)}
+                  onClick={() => { setSelectedId(ev.id); setDeleting(false) }}
                 >
                   <span className={`dot type-${ev.type}`} aria-hidden="true" />
                   <span className="event-row-body">
@@ -188,13 +226,16 @@ export default function Calendar({ user, onLogout }) {
                   <dd>{selected.createdBy}</dd>
                 </div>
               </dl>
-              <p className="detail-note">Vorschau — Bearbeiten und Löschen folgen in der echten App.</p>
+              <div className="actions"><button className="secondary" onClick={() => setEditing(selected)}>Bearbeiten</button><button className="secondary danger" onClick={() => setDeleting(true)}>Löschen</button></div>
+              {deleting && <div role="alert"><p>„{selected.title}“ für alle Personen löschen?</p><div className="actions"><button className="secondary" disabled={busy} onClick={() => setDeleting(false)}>Abbrechen</button><button className="secondary danger" disabled={busy} onClick={remove}>Endgültig löschen</button></div></div>}
             </div>
           ) : (
             <p className="side-empty">Termin antippen für Details.</p>
           )}
         </aside>
       </div>
+      {editing && <EventForm event={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />}
+      {membersOpen && <Members onClose={() => setMembersOpen(false)} />}
     </div>
   )
 }

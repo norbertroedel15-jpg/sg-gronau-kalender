@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Platzhalter-Wappen SG Gronau">
+  <defs>
+    <clipPath id="shield">
+      <path d="M40 28h320v210c0 92-70 148-160 178C120 386 40 330 40 238V28z"/>
+    </clipPath>
+  </defs>
+  <rect width="400" height="400" fill="none"/>
+  <path d="M40 28h320v210c0 92-70 148-160 178C120 386 40 330 40 238V28z" fill="#0c3d2e"/>
+  <g clip-path="url(#shield)">
+    <rect x="40" y="28" width="320" height="78" fill="#ffffff"/>
+    <text x="200" y="82" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="42" font-weight="800" fill="#0c3d2e" letter-spacing="4">GRONAU</text>
+    <rect x="40" y="106" width="160" height="147" fill="#ffffff"/>
+    <rect x="200" y="106" width="160" height="147" fill="#156649"/>
+    <rect x="40" y="253" width="160" height="147" fill="#156649"/>
+    <rect x="200" y="253" width="160" height="147" fill="#ffffff"/>
+    <text x="120" y="215" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="118" font-weight="800" fill="#0c3d2e">S</text>
+    <text x="280" y="362" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="118" font-weight="800" fill="#0c3d2e">G</text>
+  </g>
+  <path d="M40 28h320v210c0 92-70 148-160 178C120 386 40 330 40 238V28z" fill="none" stroke="#0c3d2e" stroke-width="10"/>
+  <rect x="118" y="318" width="164" height="28" rx="4" fill="#ffffff" opacity="0.92"/>
+  <text x="200" y="338" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#0c3d2e" letter-spacing="1.5">PLATZHALTER</text>
+</svg>

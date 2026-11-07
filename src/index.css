@@ -1,0 +1,53 @@
+:root {
+  --pitch: #0c3d2e;
+  --pitch-mid: #156649;
+  --grass: #1f8a5c;
+  --chalk: #ffffff;
+  --field: #eef7f2;
+  --mist: #d7ebe2;
+  --ink: #0e241b;
+  --muted: #3f5c4f;
+  --line: rgba(12, 61, 46, 0.14);
+  --training: #156649;
+  --spiel: #b42318;
+  --sitzung: #1a5f7a;
+  --font-display: 'Oswald', sans-serif;
+  --font-body: 'Figtree', sans-serif;
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background:
+    radial-gradient(1100px 520px at 8% -8%, rgba(31, 138, 92, 0.18), transparent 55%),
+    radial-gradient(900px 480px at 100% 0%, rgba(12, 61, 46, 0.1), transparent 50%),
+    linear-gradient(180deg, var(--mist) 0%, var(--field) 38%, #ffffff 100%);
+  background-attachment: fixed;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+}

@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import { api } from './api.js'
-import { TYPE_LABELS } from './data.js'
-export default function EventForm({ event, onClose, onSaved }) {
+import { DEFAULT_EVENT_TYPES } from './data.js'
+export default function EventForm({ event, onClose, onSaved, types = DEFAULT_EVENT_TYPES }) {
   const dialog = useRef(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -18,7 +18,7 @@ export default function EventForm({ event, onClose, onSaved }) {
     <label>Datum<input name="date" type="date" defaultValue={event.date} required /></label>
     <div className="form-columns"><label>Beginn<input name="time" type="time" defaultValue={event.time || '17:00'} required /></label><label>Ende<input name="endTime" type="time" defaultValue={event.endTime || '18:30'} required /></label></div>
     <label>Ort<input name="place" defaultValue={event.place} required maxLength={200} /></label>
-    <label>Terminart<select name="type" defaultValue={event.type || 'training'}>{Object.entries(TYPE_LABELS).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+    <label>Terminart<select name="type" defaultValue={event.type || types.find(t=>t.enabled)?.id}>{types.filter(t=>t.enabled || t.id===event.type).map(t => <option key={t.id} value={t.id}>{t.name}{t.enabled ? '' : ' (ausgeblendet)'}</option>)}</select></label>
     {error && <p className="login-error" role="alert">{error}</p>}
     <div className="actions"><button type="button" className="secondary" onClick={onClose} disabled={busy}>Abbrechen</button><button className="btn-primary" disabled={busy}>{busy ? 'Wird gespeichert …' : 'Termin speichern'}</button></div>
   </form></dialog>

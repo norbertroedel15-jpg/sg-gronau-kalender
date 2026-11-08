@@ -63,6 +63,14 @@ Die Migration `0002_invitations.sql` ergänzt ausschließlich eine neue Tabelle 
 
 Verwaltungskonten lassen sich in der Oberfläche nicht sperren. E-Mail-Passwortversand und automatische Wiederherstellungs-E-Mails sind nicht eingerichtet. Bei Verlust des einzigen Verwaltungspassworts ist Unterstützung durch die Cloudflare-Kontoinhaberin oder den Kontoinhaber erforderlich. Cloudflare-Kontozugang und `PASSWORD_PEPPER` deshalb geschützt aufbewahren.
 
+## Eigene Terminarten
+
+Die Vereinsverwaltung öffnet im Kalender **Terminarten verwalten**. Unter **Neue Terminart** Namen und Farbe eintragen und **Terminart anlegen** wählen. Die neue Art steht anschließend allen Mitgliedern im Terminformular, im Filter und in der Legende zur Verfügung. Bei sehr hellen Farben wird dunkle Schrift verwendet, damit der Text lesbar bleibt.
+
+Namen und Farbe lassen sich mit **Bearbeiten** ändern. **Ausblenden** entfernt eine Art aus der Auswahl für neue Termine. Vorhandene Termine bleiben unverändert zugeordnet, sichtbar, filterbar und bearbeitbar. **Wieder anzeigen** macht die Art erneut auswählbar. Mindestens eine Art muss verfügbar bleiben. Es werden keine Terminarten mit vorhandenen Terminen gelöscht.
+
+Die Migration `0003_event_types.sql` ergänzt die drei bisherigen Arten als Stammdaten und ersetzt die bisher auf drei Werte beschränkte Ereignistabelle durch eine Tabelle mit Verweis auf die Terminarten. Alle Spalten, IDs und Versionsnummern vorhandener Termine werden übernommen; Konten, Sitzungen und Einladungen bleiben unverändert. Die Datenübernahme wird im Integrationstest mit einem bereits vorhandenen Termin geprüft.
+
 ## Sparsamer Datenabgleich
 
 Es werden nur die Termine des gewählten Monats abgefragt, über einen Datenbankindex. Geöffnete Kalender gleichen sich jede Minute ab. Verborgene Tabs pausieren den regelmäßigen Abgleich; beim Zurückkehren werden die Daten erneut geladen. **Aktualisieren** lädt sofort. So werden weniger kostenlose Anfragen verbraucht. Die Speicherung erfolgt sofort, unabhängig vom Anzeigeabgleich.

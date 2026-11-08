@@ -145,3 +145,16 @@ export const MONTH_NAMES = [
   'November',
   'Dezember',
 ]
+
+export const DEFAULT_EVENT_TYPES = [
+  { id:'training', name:'Training', color:'#156649', enabled:1 },
+  { id:'spiel', name:'Spiel', color:'#b42318', enabled:1 },
+  { id:'sitzung', name:'Sitzung', color:'#1a5f7a', enabled:1 },
+]
+
+export function typeStyle(type) {
+  const color = /^#[a-f0-9]{6}$/i.test(type?.color || '') ? type.color : '#156649'
+  const values = [1,3,5].map(i => parseInt(color.slice(i,i+2),16)/255).map(v => v <= .04045 ? v/12.92 : ((v+.055)/1.055)**2.4)
+  const luminance = .2126*values[0] + .7152*values[1] + .0722*values[2]
+  return { background:color, color:luminance > .179 ? '#0e241b' : '#ffffff' }
+}

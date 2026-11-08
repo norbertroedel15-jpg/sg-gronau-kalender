@@ -687,3 +687,10 @@ button:disabled { opacity: .6; cursor: wait; }
 .member-list { margin: 0; padding-left: 1.2rem; }
 .member-list li { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
 .member-list li p { margin-top: .35rem; font-size: .85rem; color: var(--muted); }
+.edit-form input[type="color"] { width: 6rem; height: 3rem; padding: .25rem; cursor: pointer; }
+.legend { max-width: 100%; }
+.legend-item { max-width: 100%; overflow-wrap: anywhere; }
+.cal-top { flex-wrap: wrap; }
+.cal-user { max-width: 100%; }
+.sync-bar label { max-width: 100%; min-width: 0; }
+.sync-bar select { max-width: 100%; }

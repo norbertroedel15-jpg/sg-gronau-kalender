@@ -29,10 +29,12 @@ function validIdentity(b) {
   return typeof b.email === 'string' && b.email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email.trim()) && typeof b.name === 'string' && b.name.trim().length > 0 && b.name.length <= 100
 }
 function validUser(b) { return validIdentity(b) && validPassword(b.password) }
-function eventData(b) {
+async function eventData(b, db, previousType = null) {
   const fields = ['title','date','time','endTime','place','type']
-  if (!fields.every(k => typeof b[k] === 'string' && b[k].length <= (k === 'title' || k === 'place' ? 200 : 20))) fail(400, 'Bitte alle Terminfelder ausfüllen.')
-  if (!b.title.trim() || !b.place.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(b.date) || !Number.isFinite(Date.parse(b.date)) || new Date(`${b.date}T12:00:00Z`).toISOString().slice(0,10) !== b.date || ![b.time,b.endTime].every(t => /^([01]\d|2[0-3]):[0-5]\d$/.test(t)) || b.endTime <= b.time || !['training','spiel','sitzung'].includes(b.type)) fail(400, 'Datum und Uhrzeiten prüfen. Das Ende muss nach dem Beginn liegen.')
+  if (!fields.every(k => typeof b[k] === 'string' && b[k].length <= (k === 'title' || k === 'place' ? 200 : k === 'type' ? 64 : 20))) fail(400, 'Bitte alle Terminfelder ausfüllen.')
+  if (!b.title.trim() || !b.place.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(b.date) || !Number.isFinite(Date.parse(b.date)) || new Date(`${b.date}T12:00:00Z`).toISOString().slice(0,10) !== b.date || ![b.time,b.endTime].every(t => /^([01]\d|2[0-3]):[0-5]\d$/.test(t)) || b.endTime <= b.time) fail(400, 'Datum und Uhrzeiten prüfen. Das Ende muss nach dem Beginn liegen.')
+  const type = await db.prepare('SELECT enabled FROM event_types WHERE id=?').bind(b.type).first()
+  if (!type || (!type.enabled && b.type !== previousType)) fail(400, 'Bitte eine verfügbare Terminart wählen.')
   return fields.map(k => b[k].trim())
 }
 function cookie(request, value, seconds) {
@@ -58,6 +60,12 @@ async function findInvitation(db, token) {
 function invitationResult(request, token, expires) {
   // A fragment stays out of HTTP access logs and referrers. Never persist the raw token.
   return {url:`${new URL(request.url).origin}/#einladung=${token}`,expires}
+}
+function typeData(body) {
+  if (typeof body.name !== 'string' || !body.name.trim() || body.name.length > 60 || typeof body.color !== 'string' || !/^#[0-9a-f]{6}$/i.test(body.color)) fail(400,'Bitte Name (bis 60 Zeichen) und eine gültige Farbe angeben.')
+  const name = body.name.normalize('NFKC').trim().replace(/\s+/g,' ')
+  if (name.length > 60 || [...name].some(c=>c.charCodeAt(0)<32 || c.charCodeAt(0)===127)) fail(400,'Bitte einen gültigen Namen angeben.')
+  return [name,name.toLocaleLowerCase('de-DE'),body.color.toLowerCase()]
 }
 async function handle(request, env) {
   const url = new URL(request.url), path = url.pathname
@@ -200,26 +208,63 @@ async function handle(request, env) {
     await db.prepare('DELETE FROM sessions WHERE user_id=?').bind(id).run()
     return send(200,{ok:true})
   }
+  if (path === '/api/event-types' && request.method === 'GET') {
+    return send(200,{eventTypes:(await db.prepare('SELECT * FROM event_types ORDER BY rowid').all()).results})
+  }
+  if (path === '/api/event-types' && request.method === 'POST') {
+    if (user.role !== 'admin') fail(403,'Nur für die Vereinsverwaltung.')
+    const values = typeData(await json(request)), id = `custom_${randomToken(12)}`
+    const result = await db.prepare('INSERT INTO event_types(id,name,name_key,color) VALUES(?,?,?,?) ON CONFLICT(name_key) DO NOTHING').bind(id,...values).run()
+    if (!result.meta.changes) fail(409,'Eine Terminart mit diesem Namen gibt es bereits.')
+    return send(201,{id})
+  }
+  const typeMatch = path.match(/^\/api\/event-types\/([a-z0-9_]+)$/)
+  if (typeMatch && request.method === 'PUT') {
+    if (user.role !== 'admin') fail(403,'Nur für die Vereinsverwaltung.')
+    const b = await json(request), values = typeData(b)
+    if (!Number.isInteger(b.version) || typeof b.enabled !== 'boolean') fail(400,'Terminartversion oder Status fehlt.')
+    let result
+    try {
+      result = await db.prepare(`UPDATE event_types SET name=?,name_key=?,color=?,enabled=?,version=version+1
+        WHERE id=? AND version=? AND (?=1 OR enabled=0 OR (SELECT count(*) FROM event_types WHERE enabled=1)>1)`)
+        .bind(...values,b.enabled ? 1 : 0,typeMatch[1],b.version,b.enabled ? 1 : 0).run()
+    } catch(e) {
+      if (String(e.message).includes('UNIQUE constraint failed')) fail(409,'Eine Terminart mit diesem Namen gibt es bereits.')
+      throw e
+    }
+    if (!result.meta.changes) {
+      const old = await db.prepare('SELECT version FROM event_types WHERE id=?').bind(typeMatch[1]).first()
+      if (!old) fail(404,'Terminart nicht gefunden.')
+      if (old.version !== b.version) fail(409,'Diese Terminart wurde inzwischen geändert. Bitte neu öffnen.')
+      fail(400,'Mindestens eine Terminart muss verfügbar bleiben.')
+    }
+    return send(200,{ok:true})
+  }
   if (path === '/api/events' && request.method === 'GET') {
     const month = url.searchParams.get('month')
     if (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) fail(400, 'Ungültiger Monat.')
-    const result = month
-      ? await db.prepare('SELECT * FROM events WHERE date>=? AND date<=? ORDER BY date,time,id').bind(`${month}-01`,`${month}-31`).all()
-      : await db.prepare('SELECT * FROM events ORDER BY date,time,id').all()
-    return send(200,{events:result.results})
+    const query = month
+      ? db.prepare('SELECT * FROM events WHERE date>=? AND date<=? ORDER BY date,time,id').bind(`${month}-01`,`${month}-31`)
+      : db.prepare('SELECT * FROM events ORDER BY date,time,id')
+    const [events, types] = await db.batch([query,db.prepare('SELECT * FROM event_types ORDER BY rowid')])
+    return send(200,{events:events.results,eventTypes:types.results})
   }
   if (path === '/api/events' && request.method === 'POST') {
-    const values = eventData(await json(request)), id = randomToken(16)
-    await db.prepare('INSERT INTO events(id,title,date,time,endTime,place,type,createdBy) VALUES(?,?,?,?,?,?,?,?)').bind(id,...values,user.name).run()
+    const values = await eventData(await json(request),db), id = randomToken(16)
+    const result = await db.prepare(`INSERT INTO events(id,title,date,time,endTime,place,type,createdBy)
+      SELECT ?,?,?,?,?,?,?,? FROM event_types WHERE id=? AND enabled=1`).bind(id,...values,user.name,values[5]).run()
+    if (!result.meta.changes) fail(409,'Die Terminart wurde ausgeblendet. Bitte eine andere wählen.')
     return send(201,{id})
   }
   const match = path.match(/^\/api\/events\/([a-f0-9]{32})$/)
   if (match && ['PUT','DELETE'].includes(request.method)) {
     const b = await json(request)
     if (!Number.isInteger(b.version) || b.version < 1) fail(400, 'Terminversion fehlt.')
+    const oldEvent = request.method === 'PUT' ? await db.prepare('SELECT type FROM events WHERE id=?').bind(match[1]).first() : null
+    const values = request.method === 'PUT' ? await eventData(b,db,oldEvent?.type) : null
     const result = request.method === 'DELETE'
       ? await db.prepare('DELETE FROM events WHERE id=? AND version=?').bind(match[1],b.version).run()
-      : await db.prepare('UPDATE events SET title=?,date=?,time=?,endTime=?,place=?,type=?,version=version+1 WHERE id=? AND version=?').bind(...eventData(b),match[1],b.version).run()
+      : await db.prepare('UPDATE events SET title=?,date=?,time=?,endTime=?,place=?,type=?,version=version+1 WHERE id=? AND version=? AND (type=? OR EXISTS(SELECT 1 FROM event_types WHERE id=? AND enabled=1))').bind(...values,match[1],b.version,b.type,b.type).run()
     if (!result.meta.changes) {
       const existing = await db.prepare('SELECT id FROM events WHERE id=?').bind(match[1]).first()
       fail(existing ? 409 : 404, existing ? 'Der Termin wurde inzwischen geändert. Bitte neu öffnen.' : 'Termin wurde bereits gelöscht.')

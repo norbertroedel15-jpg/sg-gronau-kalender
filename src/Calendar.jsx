@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from './api.js'
 import EventForm from './EventForm.jsx'
+import EventTypes from './EventTypes.jsx'
 import Members from './Members.jsx'
 import BrandMark from './BrandMark.jsx'
 import {
   MONTH_NAMES,
-  TYPE_LABELS,
+  DEFAULT_EVENT_TYPES,
+  typeStyle,
   WEEKDAYS,
 } from './data.js'
 
@@ -39,6 +41,10 @@ export default function Calendar({ user, onLogout }) {
   const [cursor, setCursor] = useState(() => new Date())
   const [selectedId, setSelectedId] = useState(null)
 
+  const [types, setTypes] = useState(DEFAULT_EVENT_TYPES)
+  const [typesSupported, setTypesSupported] = useState(false)
+  const [typesOpen, setTypesOpen] = useState(false)
+  const typesById = useMemo(() => Object.fromEntries(types.map(t=>[t.id,t])),[types])
   const [events, setEvents] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -51,12 +57,12 @@ export default function Calendar({ user, onLogout }) {
   const month = cursor.getMonth()
   const monthKey = `${year}-${pad(month + 1)}`
   const load = useCallback(async () => {
-    try { const r = await api(`events?month=${monthKey}`); return { events:r.events } }
+    try { const r = await api(`events?month=${monthKey}`); return { events:r.events, types:r.eventTypes } }
     catch(e) { if (e.status === 401) onLogout(); return { error:e.message } }
   }, [monthKey, onLogout])
   const refresh = useCallback(async () => {
     const result = await load()
-    if (result.events) { setEvents(result.events); setError('') }
+    if (result.events) { setEvents(result.events); if (result.types) { setTypes(result.types); setTypesSupported(true) } setError('') }
     else setError(result.error)
     setLoading(false)
   }, [load])
@@ -65,7 +71,7 @@ export default function Calendar({ user, onLogout }) {
     async function sync() {
       const result = await load()
       if (!active) return
-      if (result.events) { setEvents(result.events); setError('') }
+      if (result.events) { setEvents(result.events); if (result.types) { setTypes(result.types); setTypesSupported(true) } setError('') }
       else setError(result.error)
       setLoading(false)
     }
@@ -118,6 +124,7 @@ export default function Calendar({ user, onLogout }) {
       <header className="cal-top">
         <BrandMark variant="header" />
         <div className="cal-user">
+          {user.role === 'admin' && typesSupported && <button type="button" className="btn-ghost" onClick={() => setTypesOpen(true)}>Terminarten verwalten</button>}
           {user.role === 'admin' && <button type="button" className="btn-ghost" onClick={() => setMembersOpen(true)}>Zugänge verwalten</button>}
           <span className="cal-user-name">{user.name}</span>
           <button type="button" className="btn-ghost" onClick={logout}>
@@ -139,16 +146,14 @@ export default function Calendar({ user, onLogout }) {
           </button>
         </div>
         <div className="legend" aria-label="Legende">
-          <span className="legend-item type-training">Training</span>
-          <span className="legend-item type-spiel">Spiel</span>
-          <span className="legend-item type-sitzung">Sitzung</span>
+          {types.filter(t=>t.enabled).map(t=><span key={t.id} className="legend-item" style={typeStyle(t)}>{t.name}</span>)}
         </div>
         <button type="button" className="btn-primary btn-new" onClick={() => setEditing({ date: toKey(year, month, 1) })}>
           + Neuer Termin
         </button>
       </section>
 
-      <div className="sync-bar"><label>Terminart <select value={filter} onChange={e => setFilter(e.target.value)}><option value="">Alle Termine</option>{Object.entries(TYPE_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select></label><span>{loading ? 'Termine werden geladen …' : 'Gemeinsamer Kalender · Abgleich jede Minute'}</span><button type="button" className="secondary" onClick={refresh}>Aktualisieren</button></div>
+      <div className="sync-bar"><label>Terminart <select value={filter} onChange={e => setFilter(e.target.value)}><option value="">Alle Termine</option>{types.map(t => <option key={t.id} value={t.id}>{t.name}{t.enabled ? '' : ' (ausgeblendet)'}</option>)}</select></label><span>{loading ? 'Termine werden geladen …' : 'Gemeinsamer Kalender · Abgleich jede Minute'}</span><button type="button" className="secondary" onClick={refresh}>Aktualisieren</button></div>
       {error && <p className="status login-error" role="alert">{error}</p>}
       <div className="cal-layout">
         <div className="month-grid" role="grid" aria-label={`Monatsansicht ${MONTH_NAMES[month]} ${year}`}>
@@ -175,7 +180,8 @@ export default function Calendar({ user, onLogout }) {
                       <li key={ev.id}>
                         <button
                           type="button"
-                          className={`event-chip type-${ev.type}${selectedId === ev.id ? ' is-active' : ''}`}
+                          className={`event-chip${selectedId === ev.id ? ' is-active' : ''}`}
+                          style={typeStyle(typesById[ev.type])}
                           onClick={() => { setSelectedId(ev.id); setDeleting(false) }}
                         >
                           <span className="event-time">{ev.time}</span>
@@ -201,14 +207,14 @@ export default function Calendar({ user, onLogout }) {
                   className={`event-row${selectedId === ev.id ? ' is-active' : ''}`}
                   onClick={() => { setSelectedId(ev.id); setDeleting(false) }}
                 >
-                  <span className={`dot type-${ev.type}`} aria-hidden="true" />
+                  <span className="dot" style={typeStyle(typesById[ev.type])} aria-hidden="true" />
                   <span className="event-row-body">
                     <strong>{ev.title}</strong>
                     <span>
                       {ev.date.split('-').reverse().join('.')} · {ev.time}–{ev.endTime}
                     </span>
                   </span>
-                  <span className="event-type-tag">{TYPE_LABELS[ev.type]}</span>
+                  <span className="event-type-tag">{typesById[ev.type]?.name || ev.type}</span>
                 </button>
               </li>
             ))}
@@ -216,7 +222,7 @@ export default function Calendar({ user, onLogout }) {
 
           {selected ? (
             <div className="detail" aria-live="polite">
-              <p className={`detail-type type-${selected.type}`}>{TYPE_LABELS[selected.type]}</p>
+              <p className="detail-type" style={typeStyle(typesById[selected.type])}>{typesById[selected.type]?.name || selected.type}</p>
               <h4>{selected.title}</h4>
               <dl>
                 <div>
@@ -246,7 +252,8 @@ export default function Calendar({ user, onLogout }) {
           )}
         </aside>
       </div>
-      {editing && <EventForm event={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); refresh() }} />}
+      {editing && <EventForm types={types} event={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); refresh() }} />}
+      {typesOpen && <EventTypes types={types} onClose={() => setTypesOpen(false)} onChanged={refresh} />}
       {membersOpen && <Members onClose={() => setMembersOpen(false)} />}
     </div>
   )

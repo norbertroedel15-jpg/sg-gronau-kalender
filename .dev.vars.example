@@ -1,0 +1,4 @@
+# Nur für lokale Entwicklung; eigene zufällige Werte einsetzen.
+# Für online: wrangler secret put PASSWORD_PEPPER / SETUP_TOKEN
+PASSWORD_PEPPER=replace-with-a-random-secret-at-least-32-characters
+SETUP_TOKEN=replace-with-another-random-secret-at-least-32-characters

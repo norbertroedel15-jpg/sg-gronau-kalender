@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from './api.js'
 import EventForm from './EventForm.jsx'
 import Members from './Members.jsx'
@@ -47,32 +47,43 @@ export default function Calendar({ user, onLogout }) {
   const [deleting, setDeleting] = useState(false)
   const [busy, setBusy] = useState(false)
   const [filter, setFilter] = useState('')
-  async function load() {
-    try { const r = await api('events'); setEvents(r.events); setError('') }
-    catch(e) { if (e.status === 401) onLogout(); else setError(e.message) }
-    finally { setLoading(false) }
-  }
+  const year = cursor.getFullYear()
+  const month = cursor.getMonth()
+  const monthKey = `${year}-${pad(month + 1)}`
+  const load = useCallback(async () => {
+    try { const r = await api(`events?month=${monthKey}`); return { events:r.events } }
+    catch(e) { if (e.status === 401) onLogout(); return { error:e.message } }
+  }, [monthKey, onLogout])
+  const refresh = useCallback(async () => {
+    const result = await load()
+    if (result.events) { setEvents(result.events); setError('') }
+    else setError(result.error)
+    setLoading(false)
+  }, [load])
   useEffect(() => {
     let active = true
-    async function refresh() {
-      try { const r = await api('events'); if (active) { setEvents(r.events); setError('') } }
-      catch(e) { if (active) { if (e.status === 401) onLogout(); else setError(e.message) } }
-      finally { if (active) setLoading(false) }
+    async function sync() {
+      const result = await load()
+      if (!active) return
+      if (result.events) { setEvents(result.events); setError('') }
+      else setError(result.error)
+      setLoading(false)
     }
-    refresh(); const timer = setInterval(refresh, 15000)
-    return () => { active = false; clearInterval(timer) }
-  }, [onLogout])
+    sync()
+    const timer = setInterval(() => { if (!document.hidden) sync() }, 60000)
+    const onVisible = () => { if (!document.hidden) sync() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { active = false; clearInterval(timer); document.removeEventListener('visibilitychange', onVisible) }
+  }, [load])
   async function logout() { try { await api('logout','POST',{}); onLogout() } catch(e) { setError(e.message) } }
   async function remove() {
     setBusy(true)
-    try { await api(`events/${selected.id}`,'DELETE',{version:selected.version}); setSelectedId(null); setDeleting(false); await load() }
-    catch(e) { setDeleting(false); await load(); setError(e.message) }
+    try { await api(`events/${selected.id}`,'DELETE',{version:selected.version}); setSelectedId(null); setDeleting(false); await refresh() }
+    catch(e) { setDeleting(false); await refresh(); setError(e.message) }
     finally { setBusy(false) }
   }
   const visibleEvents = useMemo(() => events.filter(e => !filter || e.type === filter), [events, filter])
 
-  const year = cursor.getFullYear()
-  const month = cursor.getMonth()
   const cells = useMemo(() => buildMonthGrid(year, month), [year, month])
 
   const eventsByDay = useMemo(() => {
@@ -97,6 +108,7 @@ export default function Calendar({ user, onLogout }) {
   const [todayKey] = useState(() => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date()))
 
   function shiftMonth(delta) {
+    setLoading(true); setEvents([])
     setCursor(new Date(year, month + delta, 1))
     setSelectedId(null)
   }
@@ -136,7 +148,7 @@ export default function Calendar({ user, onLogout }) {
         </button>
       </section>
 
-      <div className="sync-bar"><label>Terminart <select value={filter} onChange={e => setFilter(e.target.value)}><option value="">Alle Termine</option>{Object.entries(TYPE_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select></label><span>{loading ? 'Termine werden geladen …' : 'Gemeinsamer Kalender · Abgleich alle 15 Sekunden'}</span><button type="button" className="secondary" onClick={load}>Aktualisieren</button></div>
+      <div className="sync-bar"><label>Terminart <select value={filter} onChange={e => setFilter(e.target.value)}><option value="">Alle Termine</option>{Object.entries(TYPE_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select></label><span>{loading ? 'Termine werden geladen …' : 'Gemeinsamer Kalender · Abgleich jede Minute'}</span><button type="button" className="secondary" onClick={refresh}>Aktualisieren</button></div>
       {error && <p className="status login-error" role="alert">{error}</p>}
       <div className="cal-layout">
         <div className="month-grid" role="grid" aria-label={`Monatsansicht ${MONTH_NAMES[month]} ${year}`}>
@@ -234,7 +246,7 @@ export default function Calendar({ user, onLogout }) {
           )}
         </aside>
       </div>
-      {editing && <EventForm event={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />}
+      {editing && <EventForm event={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); refresh() }} />}
       {membersOpen && <Members onClose={() => setMembersOpen(false)} />}
     </div>
   )

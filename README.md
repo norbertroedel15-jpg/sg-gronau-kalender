@@ -1,13 +1,25 @@
 # Vereinskalender SG Gronau · Abteilung Fußball
 
-Gemeinsamer Kalender mit echter Anmeldung und zentraler SQLite-Datenbank.
+Gemeinsamer Kalender mit echter Anmeldung und dauerhafter Datenspeicherung.
+
+## Empfohlener kostenloser Betrieb: Cloudflare
+
+Die Cloudflare-Version ist für Workers Free mit D1 vorbereitet, werbefrei und unabhängig von der Vereinshomepage. **Noch nicht online veröffentlicht.** Die vollständige Einrichtung steht in [CLOUDFLARE.md](CLOUDFLARE.md). Für die Veröffentlichung ist ein kostenloses Cloudflare-Konto erforderlich; keine kostenpflichtige Buchung erfolgt durch den Code.
+
+- Worker-API mit D1 statt einer flüchtigen lokalen Datei.
+- Geschützte erstmalige Einrichtung im Browser.
+- Konten anlegen, Passwörter ändern und Mitglieder sperren.
+- Abgleich jede Minute, nur für den sichtbaren Monat; Pause in verborgenen Tabs.
+- Tests: `npm test`, `npm run lint`, `npm run cf:check`.
+
+Die folgenden Hinweise beschreiben die weiterhin verfügbare **alternative Node-/Docker-Version**.
 
 ## Was funktioniert?
 
 - Jede Person bekommt ein eigenes Konto. Keine öffentliche Registrierung.
 - Die Vereinsverwaltung legt weitere Zugänge im Kalender an.
 - Alle angemeldeten Personen sehen denselben Kalender und können alle Termine anlegen, bearbeiten und löschen.
-- Neue Termine sind sofort gespeichert. Andere geöffnete Kalender gleichen sich alle 15 Sekunden ab; „Aktualisieren“ lädt sofort.
+- Neue Termine sind sofort gespeichert. Andere geöffnete Kalender gleichen sich jede Minute ab; „Aktualisieren“ lädt sofort.
 - Monat wechseln, Terminarten filtern, Details öffnen und auf Handy oder Computer nutzen.
 - Passwörter werden mit scrypt gehasht, Sitzungscookies sind HttpOnly; Sitzungen enden nach 24 Stunden.
 - Gleichzeitige Änderungen werden erkannt. Bei einem Konflikt den Termin neu öffnen.

@@ -25,9 +25,10 @@ async function json(request) {
   return result
 }
 function validPassword(p) { return typeof p === 'string' && p.length >= 12 && p.length <= 128 }
-function validUser(b) {
-  return typeof b.email === 'string' && b.email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email.trim()) && typeof b.name === 'string' && b.name.trim().length > 0 && b.name.length <= 100 && validPassword(b.password)
+function validIdentity(b) {
+  return typeof b.email === 'string' && b.email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email.trim()) && typeof b.name === 'string' && b.name.trim().length > 0 && b.name.length <= 100
 }
+function validUser(b) { return validIdentity(b) && validPassword(b.password) }
 function eventData(b) {
   const fields = ['title','date','time','endTime','place','type']
   if (!fields.every(k => typeof b[k] === 'string' && b[k].length <= (k === 'title' || k === 'place' ? 200 : 20))) fail(400, 'Bitte alle Terminfelder ausfüllen.')
@@ -43,6 +44,20 @@ async function rateLimit(db, key, max) {
     ON CONFLICT(key) DO UPDATE SET count=CASE WHEN expires<=? THEN 1 ELSE count+1 END,
     expires=CASE WHEN expires<=? THEN excluded.expires ELSE expires END RETURNING count`).bind(key,now+900000,now,now).first()
   if (row.count > max) fail(429, 'Zu viele Versuche. Bitte in 15 Minuten erneut versuchen.')
+}
+const invitationError = 'Dieser Einladungslink ist ungültig, abgelaufen oder wurde bereits verwendet. Bitte die Vereinsverwaltung um einen neuen Link bitten.'
+async function findInvitation(db, token) {
+  if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) fail(410, invitationError)
+  const hashed = await digest(token)
+  const invitation = await db.prepare(`SELECT i.user_id,i.auth_version,i.expires,u.name,u.email
+    FROM invitations i JOIN users u ON u.id=i.user_id
+    WHERE i.token_hash=? AND i.expires>? AND u.auth_version=i.auth_version`).bind(hashed,Date.now()).first()
+  if (!invitation) fail(410, invitationError)
+  return {...invitation, hashed}
+}
+function invitationResult(request, token, expires) {
+  // A fragment stays out of HTTP access logs and referrers. Never persist the raw token.
+  return {url:`${new URL(request.url).origin}/#einladung=${token}`,expires}
 }
 async function handle(request, env) {
   const url = new URL(request.url), path = url.pathname
@@ -87,6 +102,26 @@ async function handle(request, env) {
     ])
     return send(200, { user: { id:found.id,email:found.email,name:found.name,role:found.role } }, { 'Set-Cookie':cookie(request,token,86400) })
   }
+  if (['/api/invitations/check','/api/invitations/accept'].includes(path) && request.method === 'POST') {
+    await rateLimit(db, `invite-ip:${await digest(request.headers.get('CF-Connecting-IP') || 'local')}`, 60)
+    const b = await json(request)
+    const invite = await findInvitation(db,b.token)
+    if (path === '/api/invitations/check') return send(200,{name:invite.name,email:invite.email,expires:invite.expires})
+    if (!validPassword(b.password)) fail(400,'Bitte ein Passwort mit 12–128 Zeichen wählen.')
+    const hashed = await passwordHash(b.password,env.PASSWORD_PEPPER)
+    // D1 batch is transactional. Revalidate the token, expiry and account version
+    // in the UPDATE after hashing, so only one parallel acceptance can succeed.
+    const results = await db.batch([
+      db.prepare(`UPDATE users SET password=?,disabled=0,auth_version=auth_version+1
+        WHERE id=? AND auth_version=? AND EXISTS(
+          SELECT 1 FROM invitations WHERE user_id=users.id AND token_hash=? AND expires>?
+          AND auth_version=users.auth_version)`).bind(hashed,invite.user_id,invite.auth_version,invite.hashed,Date.now()),
+      db.prepare('DELETE FROM sessions WHERE user_id=? AND auth_version!=(SELECT auth_version FROM users WHERE id=?)').bind(invite.user_id,invite.user_id),
+      db.prepare('DELETE FROM invitations WHERE token_hash=?').bind(invite.hashed)
+    ])
+    if (!results[0].meta.changes) fail(410,invitationError)
+    return send(200,{ok:true,email:invite.email})
+  }
   const rawToken = (request.headers.get('Cookie') || '').split(';').map(s=>s.trim()).find(s=>s.startsWith('sg_session='))?.slice(11) || ''
   const token = await digest(rawToken)
   const user = await db.prepare(`SELECT u.id,u.email,u.name,u.role FROM sessions s JOIN users u ON u.id=s.user_id
@@ -99,7 +134,10 @@ async function handle(request, env) {
   }
   if (path === '/api/users') {
     if (user.role !== 'admin') fail(403, 'Nur für die Vereinsverwaltung.')
-    if (request.method === 'GET') return send(200, { manageAccounts:true, users:(await db.prepare(`SELECT ${userColumns} FROM users ORDER BY name`).all()).results})
+    if (request.method === 'GET') return send(200, { manageAccounts:true, invitationSupport:true,
+      users:(await db.prepare(`SELECT ${userColumns},password='' AS activation_pending,
+        (SELECT expires FROM invitations i WHERE i.user_id=users.id AND i.auth_version=users.auth_version) AS invitation_expires
+        FROM users ORDER BY name`).all()).results })
     if (request.method === 'POST') {
       const b = await json(request)
       if (!validUser(b)) fail(400, 'Name, gültige E-Mail und Passwort mit 12–128 Zeichen erforderlich.')
@@ -107,6 +145,43 @@ async function handle(request, env) {
       if (!result.meta.changes) fail(409, 'Diese E-Mail ist bereits registriert.')
       return send(201, {ok:true})
     }
+  }
+  if (path === '/api/invitations' && request.method === 'POST') {
+    if (user.role !== 'admin') fail(403,'Nur für die Vereinsverwaltung.')
+    const b = await json(request)
+    if (!validIdentity(b)) fail(400,'Name und gültige E-Mail erforderlich.')
+    const email = b.email.trim().toLowerCase()
+    if (await db.prepare('SELECT id FROM users WHERE email=?').bind(email).first()) fail(409,'Diese Person ist bereits angelegt. Bitte bei ihrem Eintrag einen neuen Einladungslink erstellen.')
+    const token = randomToken(), expires = Date.now()+7*DAY
+    try {
+      await db.batch([
+        db.prepare("INSERT INTO users(email,name,password,role,disabled) VALUES(?,?,'','member',1)").bind(email,b.name.trim()),
+        db.prepare('INSERT INTO invitations(user_id,token_hash,auth_version,expires) SELECT id,?,auth_version,? FROM users WHERE email=?').bind(await digest(token),expires,email)
+      ])
+    } catch(e) {
+      if (String(e.message).includes('UNIQUE constraint failed')) fail(409,'Diese E-Mail ist bereits registriert.')
+      throw e
+    }
+    return send(201,invitationResult(request,token,expires))
+  }
+  const inviteMatch = path.match(/^\/api\/users\/(\d+)\/invitation$/)
+  if (inviteMatch && ['POST','DELETE'].includes(request.method)) {
+    if (user.role !== 'admin') fail(403,'Nur für die Vereinsverwaltung.')
+    const target = await db.prepare('SELECT id,role,auth_version FROM users WHERE id=?').bind(Number(inviteMatch[1])).first()
+    if (!target) fail(404,'Konto nicht gefunden.')
+    if (request.method === 'DELETE') {
+      await db.prepare('DELETE FROM invitations WHERE user_id=?').bind(target.id).run()
+      return send(200,{ok:true})
+    }
+    const token = randomToken(), expires = Date.now()+7*DAY
+    // Reissuing replaces the old link. Existing passwords/sessions stay valid
+    // until the person actually sets a new password through the link.
+    const result = await db.prepare(`INSERT INTO invitations(user_id,token_hash,auth_version,expires)
+      SELECT id,?,auth_version,? FROM users WHERE id=? AND auth_version=?
+      ON CONFLICT(user_id) DO UPDATE SET token_hash=excluded.token_hash,
+      auth_version=excluded.auth_version,expires=excluded.expires`).bind(await digest(token),expires,target.id,target.auth_version).run()
+    if (!result.meta.changes) fail(409,'Konto wurde inzwischen geändert. Bitte erneut versuchen.')
+    return send(201,invitationResult(request,token,expires))
   }
   const accountMatch = path.match(/^\/api\/users\/(\d+)$/)
   if (accountMatch && request.method === 'PATCH') {
@@ -117,10 +192,10 @@ async function handle(request, env) {
     // Members are created through this UI. Administrators cannot be disabled here.
     if (b.action === 'disable') {
       if (target.role === 'admin') fail(400, 'Verwaltungskonten können hier nicht gesperrt werden.')
-      await db.prepare('UPDATE users SET disabled=1,auth_version=auth_version+1 WHERE id=?').bind(id).run()
+      await db.batch([db.prepare('UPDATE users SET disabled=1,auth_version=auth_version+1 WHERE id=?').bind(id),db.prepare('DELETE FROM invitations WHERE user_id=?').bind(id)])
     } else if (b.action === 'reset-password') {
       if (!validPassword(b.password)) fail(400, 'Passwort muss 12–128 Zeichen haben.')
-      await db.prepare('UPDATE users SET password=?,disabled=0,auth_version=auth_version+1 WHERE id=?').bind(await passwordHash(b.password,env.PASSWORD_PEPPER),id).run()
+      await db.batch([db.prepare('UPDATE users SET password=?,disabled=0,auth_version=auth_version+1 WHERE id=?').bind(await passwordHash(b.password,env.PASSWORD_PEPPER),id),db.prepare('DELETE FROM invitations WHERE user_id=?').bind(id)])
     } else fail(400, 'Unbekannte Aktion.')
     await db.prepare('DELETE FROM sessions WHERE user_id=?').bind(id).run()
     return send(200,{ok:true})

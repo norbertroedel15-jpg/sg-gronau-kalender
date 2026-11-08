@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare'
@@ -24,8 +24,10 @@ test('Cloudflare Worker: geschützte Einrichtung, geteilte Termine, Konflikte, K
   const adminBody={email:'admin@example.org',name:'Vereinsverwaltung',password:'Ein-Testpasswort-2026',token:options.bindings.SETUP_TOKEN}
   try {
     const db = await mf.getD1Database('DB')
-    const sql = await readFile('cloudflare/migrations/0001_calendar.sql','utf8')
-    await db.batch(sql.split(';').filter(s=>s.trim()).map(s=>db.prepare(s)))
+    for (const name of (await readdir('cloudflare/migrations')).filter(n=>n.endsWith('.sql')).sort()) {
+      const sql = await readFile(`cloudflare/migrations/${name}`,'utf8')
+      await db.batch(sql.split(';').filter(s=>s.trim()).map(s=>db.prepare(s)))
+    }
     assert.deepEqual(await (await req('setup')).json(),{available:true})
     assert.equal((await req('events')).status,401)
     assert.equal((await req('setup','POST',{...adminBody,token:'falsch'})).status,403)

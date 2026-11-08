@@ -4,11 +4,12 @@ Gemeinsamer Kalender mit echter Anmeldung und dauerhafter Datenspeicherung.
 
 ## Empfohlener kostenloser Betrieb: Cloudflare
 
-Die Cloudflare-Version ist für Workers Free mit D1 vorbereitet, werbefrei und unabhängig von der Vereinshomepage. **Noch nicht online veröffentlicht.** Die vollständige Einrichtung steht in [CLOUDFLARE.md](CLOUDFLARE.md). Für die Veröffentlichung ist ein kostenloses Cloudflare-Konto erforderlich; keine kostenpflichtige Buchung erfolgt durch den Code.
+Die Cloudflare-Version ist für Workers Free mit D1 vorbereitet, werbefrei und unabhängig von der Vereinshomepage. Live: https://sg-gronau-kalender.norbertroedel15.workers.dev/. Die vollständige Einrichtung steht in [CLOUDFLARE.md](CLOUDFLARE.md). Für die Veröffentlichung ist ein kostenloses Cloudflare-Konto erforderlich; keine kostenpflichtige Buchung erfolgt durch den Code.
 
 - Worker-API mit D1 statt einer flüchtigen lokalen Datei.
 - Geschützte erstmalige Einrichtung im Browser.
-- Konten anlegen, Passwörter ändern und Mitglieder sperren.
+- Personen per einmaligem Einladungslink einladen; sie wählen ihr Passwort selbst. Links gelten sieben Tage, können ersetzt oder widerrufen werden.
+- Bestehenden Personen Links für ein neues eigenes Passwort geben und Mitglieder sperren. Kein automatischer E-Mail-Versand.
 - Abgleich jede Minute, nur für den sichtbaren Monat; Pause in verborgenen Tabs.
 - Tests: `npm test`, `npm run lint`, `npm run cf:check`.
 

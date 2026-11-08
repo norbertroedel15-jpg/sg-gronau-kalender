@@ -2,7 +2,7 @@
 
 Der Kalender kann unabhängig von der Vereinshomepage unter einer kostenlosen `workers.dev`-Adresse laufen. Frontend und API laufen in einem Worker; Cloudflare D1 speichert die gemeinsamen Termine, Konten und Sitzungen dauerhaft. Kein Werbeskript wird eingebunden.
 
-**Stand: vorbereitet, noch nicht veröffentlicht.** Ein kostenloses Cloudflare-Konto ist erforderlich. Der kostenlose Tarif hat Nutzungsgrenzen; das ist keine Garantie für unbegrenzten oder dauerhaft kostenlosen Betrieb. Kein Upgrade und keine kostenpflichtige Domain nötig. Vor einem Tarifwechsel immer den Preis bestätigen.
+**Stand: Die Anwendung läuft unter https://sg-gronau-kalender.norbertroedel15.workers.dev/.** Die folgende Anleitung dokumentiert auch die Einrichtung einer weiteren Instanz. Ein kostenloses Cloudflare-Konto ist erforderlich. Der kostenlose Tarif hat Nutzungsgrenzen; das ist keine Garantie für unbegrenzten oder dauerhaft kostenlosen Betrieb. Kein Upgrade und keine kostenpflichtige Domain nötig. Vor einem Tarifwechsel immer den Preis bestätigen.
 
 ## Einmalige Einrichtung (mit technischer Begleitung)
 
@@ -43,14 +43,23 @@ Der Kalender kann unabhängig von der Vereinshomepage unter einer kostenlosen `w
    ```
 
    Die normale Anmeldung bleibt verfügbar. Der Einrichtungsknopf wird ausgeblendet, sobald ein Konto existiert. Keine öffentliche Selbstregistrierung.
-9. Unter **Zugänge verwalten** weitere Personen anlegen. Zugangsdaten persönlich weitergeben. Mit einer zweiten Person Anmeldung, Terminänderung und Abgleich testen.
+9. Unter **Zugänge verwalten → Person einladen** Namen und E-Mail eintragen, **Einladungslink erstellen** und **Link kopieren** wählen. Den Link persönlich an die vorgesehene Person weitergeben. Sie legt darüber ihr eigenes Passwort fest und wird anschließend angemeldet. Es wird keine E-Mail automatisch versendet.
 
 ## Was die Vereinsverwaltung selbst erledigen kann
 
-- Personen hinzufügen.
-- Mitgliederzugänge sperren; bestehende Sitzungen sind sofort ungültig.
-- Passwörter ändern und damit einen gesperrten Zugang wieder aktivieren. Auch dabei enden alte Sitzungen.
+- Personen mit Name und E-Mail einladen, ohne ein Passwort für sie festzulegen.
+- Mitgliederzugänge sperren; bestehende Sitzungen und Einladungslinks sind sofort ungültig.
+- Für vorhandene Personen einen **Link für eigenes neues Passwort** erstellen. Die Person wählt das neue Passwort selbst; dabei enden ihre bisherigen Sitzungen. Ein gesperrter Zugang wird dadurch wieder aktiviert.
+- Einladungslinks widerrufen oder neu erstellen. Ein neuer Link ersetzt den vorherigen.
 - Alle Mitglieder können alle Termine ansehen, anlegen, bearbeiten und löschen.
+
+### Einladungslinks
+
+Links gelten sieben Tage und genau für eine Person. Sie sind nur einmal verwendbar. Öffnen oder Prüfen allein verbraucht den Link nicht; erst das erfolgreiche Speichern des Passworts aktiviert den Zugang. Ein bereits angemeldetes Mitglied kann bei Bedarf über einen neuen Link sein Passwort selbst neu wählen. Bis dahin bleiben sein bisheriges Passwort und seine Sitzungen gültig.
+
+Wer den Link besitzt, kann das Passwort dieser Person festlegen. Den Link deshalb nur persönlich weitergeben und nicht öffentlich posten. Es erfolgt keine zusätzliche E-Mail-Verifikation. Der Link wird nur unmittelbar nach seiner Erstellung angezeigt; bei Verlust einen neuen erstellen. In der Datenbank wird nur der SHA-256-Hash des zufälligen Tokens gespeichert. Der Token steht im URL-Fragment, damit er nicht im normalen HTTP-Aufruf oder Referer erscheint.
+
+Die Migration `0002_invitations.sql` ergänzt ausschließlich eine neue Tabelle und ihren Index; vorhandene Konten und Termine bleiben erhalten. Beim bisherigen Cloudflare-Build läuft weiterhin `npx wrangler d1 migrations apply DB --remote && npx wrangler deploy`. Vor dem Hochladen der neuen Worker-Version müssen die Migrationen angewandt sein.
 
 Verwaltungskonten lassen sich in der Oberfläche nicht sperren. E-Mail-Passwortversand und automatische Wiederherstellungs-E-Mails sind nicht eingerichtet. Bei Verlust des einzigen Verwaltungspassworts ist Unterstützung durch die Cloudflare-Kontoinhaberin oder den Kontoinhaber erforderlich. Cloudflare-Kontozugang und `PASSWORD_PEPPER` deshalb geschützt aufbewahren.
 

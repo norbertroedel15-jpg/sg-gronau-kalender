@@ -14,7 +14,7 @@
   "d1_databases": [{
     "binding": "DB",
     "database_name": "sg-gronau-kalender",
-    "database_id": "00000000-0000-0000-0000-000000000000",
+    "database_id": "0b220970-2ce8-4e91-883d-fb562ac4b85c",
     "migrations_dir": "cloudflare/migrations"
   }]
 }

@@ -681,3 +681,9 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 button:disabled { opacity: .6; cursor: wait; }
 .edit-form li { overflow-wrap: anywhere; margin-bottom: .5rem; }
 @media(prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+.invite-result { display: grid; gap: .7rem; padding: 1rem; border: 2px solid var(--grass); border-radius: 8px; background: white; }
+.invite-result label { display: grid; gap: .35rem; }
+.invite-result input { width: 100%; min-width: 0; padding: .7rem; font: inherit; border: 1px solid var(--line); border-radius: 4px; }
+.member-list { margin: 0; padding-left: 1.2rem; }
+.member-list li { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.member-list li p { margin-top: .35rem; font-size: .85rem; color: var(--muted); }

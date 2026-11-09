@@ -736,3 +736,6 @@ button:disabled { opacity: .6; cursor: wait; }
 .contacts-empty { padding: 1.5rem; border: 1px dashed var(--line); border-radius: 8px; background: #eaf4ef; color: var(--pitch); }
 .contacts-empty p { margin-top: .5rem; line-height: 1.5; }
 @media(max-width:720px) { .contacts-section { margin: 1rem .75rem; padding: 1rem; } .contacts-section .form-columns { grid-template-columns: 1fr; } }
+
+.calendar-main { min-width: 0; }
+.calendar-main > .contacts-section { margin: 1rem 0 0; }

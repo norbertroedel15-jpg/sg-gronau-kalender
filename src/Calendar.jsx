@@ -182,6 +182,7 @@ export default function Calendar({ user, onLogout }) {
       <div className="sync-bar"><label>Terminart <select value={filter} onChange={e => setFilter(e.target.value)}><option value="">Alle Termine</option>{types.map(t => <option key={t.id} value={t.id}>{t.name}{t.enabled ? '' : ' (ausgeblendet)'}</option>)}</select></label><span>{loading ? 'Termine werden geladen …' : 'Gemeinsamer Kalender · Abgleich jede Minute'}</span><button type="button" className="secondary" onClick={refresh}>Aktualisieren</button></div>
       {error && <p className="status login-error" role="alert">{error}</p>}
       <div className="cal-layout">
+        <div className="calendar-main">
         <div className="month-grid" role="grid" aria-label={`Monatsansicht ${MONTH_NAMES[month]} ${year}`}>
           <div className="weekday-row">
             {WEEKDAYS.map((d) => (
@@ -222,6 +223,8 @@ export default function Calendar({ user, onLogout }) {
           </div>
         </div>
 
+        <Contacts user={user} inline />
+        </div>
         <aside className="side-panel">
           <h3>Termine im Monat</h3>
           {!loading && monthEvents.length === 0 && <p>Keine Termine in diesem Monat.</p>}
@@ -279,7 +282,6 @@ export default function Calendar({ user, onLogout }) {
           )}
         </aside>
       </div>
-      <Contacts user={user} inline />
       {editing && <EventForm recurringSupport={recurringSupport} types={types} event={editing} onClose={() => setEditing(null)} onSaved={r => { setEditing(null); setNotice(r.count ? `${r.count} Termine der Serie gespeichert.` : 'Termin gespeichert.'); refresh() }} />}
       {typesOpen && <EventTypes types={types} onClose={() => setTypesOpen(false)} onChanged={refresh} />}
 

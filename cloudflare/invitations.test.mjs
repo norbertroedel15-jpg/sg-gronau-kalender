@@ -8,7 +8,7 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare'
 test('Einladungen: Passwort selbst wählen, nur einmal, Ablauf, Neuversand, Widerruf, Sperren und parallele Annahme', async () => {
   const dir = await mkdtemp(join(tmpdir(),'sg-invites-'))
   const mf = new Miniflare({...convertV4MiniflareOptions({
-    modules:[{type:'ESModule',path:resolve('cloudflare/worker.js')},{type:'ESModule',path:resolve('cloudflare/passwords.js')}],compatibilityDate:'2026-11-08',d1Databases:{DB:'invite-db'},
+    modules:[{type:'ESModule',path:resolve('cloudflare/worker.js')},{type:'ESModule',path:resolve('cloudflare/passwords.js')},{type:'ESModule',path:resolve('shared/recurrence.js')}],compatibilityDate:'2026-11-08',d1Databases:{DB:'invite-db'},
     bindings:{PASSWORD_PEPPER:'invite-test-pepper-minimum-32-characters',SETUP_TOKEN:'invite-test-setup-minimum-32-characters'}
   }),resourcePersistencePath:dir})
   const req = (path,method='GET',body,cookie,headers={}) => mf.dispatchFetch(`https://calendar.example/api/${path}`,{

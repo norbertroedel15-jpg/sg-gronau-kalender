@@ -694,3 +694,17 @@ button:disabled { opacity: .6; cursor: wait; }
 .cal-user { max-width: 100%; }
 .sync-bar label { max-width: 100%; min-width: 0; }
 .sync-bar select { max-width: 100%; }
+.training-planner { margin: .8rem 1.5rem; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: #ffffffb3; }
+.training-planner h3 { margin: 0; color: var(--pitch); }
+.training-planner p { margin: .4rem 0 .8rem; font-size: .9rem; color: var(--muted); }
+.training-buttons { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: .5rem; }
+.training-buttons button { border: 0; border-radius: 5px; padding: .8rem; text-align: left; display: grid; gap: .3rem; overflow-wrap: anywhere; }
+.training-buttons span { font-size: .8rem; }
+.repeat-fields { border: 1px solid var(--line); border-radius: 5px; padding: .8rem; display: grid; gap: .8rem; min-width: 0; }
+.repeat-fields p { font-size: .85rem; color: var(--muted); }
+.weekday-picker { display: flex; flex-wrap: wrap; gap: .5rem; }
+.weekday-picker label { display: grid; justify-items: center; padding: .3rem; }
+.edit-form input[type="checkbox"] { width: 1.2rem; height: 1.2rem; margin: 0; padding: 0; }
+.edit-form .check-label { display: flex; align-items: center; gap: .6rem; }
+.series-note { font-size: .85rem; color: var(--muted); line-height: 1.5; }
+@media(max-width:720px) { .training-planner { margin: .7rem; } .training-buttons { grid-template-columns: repeat(2,minmax(0,1fr)); } }

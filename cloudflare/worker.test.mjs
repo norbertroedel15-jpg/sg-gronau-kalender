@@ -8,7 +8,7 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare'
 test('Cloudflare Worker: geschützte Einrichtung, geteilte Termine, Konflikte, Konten und Datenerhalt', async () => {
   const dir = await mkdtemp(join(tmpdir(),'sg-d1-'))
   const options = {
-    modules:[{type:'ESModule',path:resolve('cloudflare/worker.js')},{type:'ESModule',path:resolve('cloudflare/passwords.js')}], compatibilityDate:'2026-11-08',
+    modules:[{type:'ESModule',path:resolve('cloudflare/worker.js')},{type:'ESModule',path:resolve('cloudflare/passwords.js')},{type:'ESModule',path:resolve('shared/recurrence.js')}], compatibilityDate:'2026-11-08',
     d1Databases:{ DB:'test-db' },
     bindings:{ PASSWORD_PEPPER:'local-test-pepper-32-characters-minimum',SETUP_TOKEN:'local-test-setup-code-32-characters-minimum' }
   }

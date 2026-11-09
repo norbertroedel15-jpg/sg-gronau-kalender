@@ -1,4 +1,4 @@
-const TITLE = 'Vereinskalender SG Gronau Abteilung Fußball'
+const TITLE = 'Terminkalender SG Gronau Abteilung Fußball'
 /** Cache-Bust, falls Browser alte Assets hält */
 const WAPPEN_SRC = `/wappen.png?v=20261107b`
 

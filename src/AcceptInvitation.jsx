@@ -37,7 +37,7 @@ export default function AcceptInvitation({ token, onLogin, onBack }) {
       <h2>Eigenes Passwort festlegen</h2>
       {loading && <p role="status">Einladung wird geprüft …</p>}
       {person && !accepted && <>
-        <p className="login-hint">Hallo {person.name}! Lege dein eigenes Passwort für den Vereinskalender fest. Die Vereinsverwaltung erfährt es nicht.</p>
+        <p className="login-hint">Hallo {person.name}! Lege dein eigenes Passwort für den Terminkalender fest. Die Vereinsverwaltung erfährt es nicht.</p>
         <label>E-Mail<input type="email" value={person.email} readOnly autoComplete="username" /></label>
         <label>Neues Passwort (mindestens 12 Zeichen)<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={12} maxLength={128} autoComplete="new-password" /></label>
         <label>Passwort wiederholen<input type="password" value={repeat} onChange={e=>setRepeat(e.target.value)} required minLength={12} maxLength={128} autoComplete="new-password" /></label>

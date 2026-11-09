@@ -70,7 +70,15 @@ function typeData(body) {
 }
 async function handle(request, env) {
   const url = new URL(request.url), path = url.pathname
-  if (!path.startsWith('/api/')) return env.ASSETS.fetch(request)
+  if (path === '/api/version' && request.method === 'GET') return send(200, {release:'contacts-v2'})
+  if (!path.startsWith('/api/')) {
+    const response = await env.ASSETS.fetch(request)
+    if (!response.headers.get('Content-Type')?.includes('text/html')) return response
+    const headers = new Headers(response.headers)
+    headers.set('Cache-Control','no-store')
+    headers.set('X-Calendar-Release','contacts-v2')
+    return new Response(response.body,{status:response.status,statusText:response.statusText,headers})
+  }
   if (!env.DB || !env.PASSWORD_PEPPER || env.PASSWORD_PEPPER.length < 32) fail(503, 'Der Kalender ist noch nicht vollständig eingerichtet.')
   const db = env.DB.withSession('first-primary')
   if (!['GET','HEAD'].includes(request.method)) {

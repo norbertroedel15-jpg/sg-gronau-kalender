@@ -54,7 +54,6 @@ export default function Calendar({ user, onLogout }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null)
-  const [contactsOpen,setContactsOpen] = useState(false)
   const [membersOpen, setMembersOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -135,7 +134,7 @@ export default function Calendar({ user, onLogout }) {
       <header className="cal-top">
         <BrandMark variant="header" />
         <div className="cal-user">
-          <button type="button" className="btn-ghost" onClick={()=>setContactsOpen(true)}>Kontaktbuch</button>
+          <button type="button" className="btn-ghost" onClick={()=>{document.getElementById('kontaktbuch')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});document.querySelector('#kontaktbuch input[type="search"]')?.focus({preventScroll:true})}}>Kontaktbuch</button>
           {user.role === 'admin' && typesSupported && <button type="button" className="btn-ghost" onClick={() => setTypesOpen(true)}>Terminarten verwalten</button>}
           {user.role === 'admin' && <button type="button" className="btn-ghost" onClick={() => setMembersOpen(true)}>Zugänge verwalten</button>}
           <span className="cal-user-name">{user.name}</span>
@@ -280,9 +279,10 @@ export default function Calendar({ user, onLogout }) {
           )}
         </aside>
       </div>
+      <Contacts user={user} inline />
       {editing && <EventForm recurringSupport={recurringSupport} types={types} event={editing} onClose={() => setEditing(null)} onSaved={r => { setEditing(null); setNotice(r.count ? `${r.count} Termine der Serie gespeichert.` : 'Termin gespeichert.'); refresh() }} />}
       {typesOpen && <EventTypes types={types} onClose={() => setTypesOpen(false)} onChanged={refresh} />}
-      {contactsOpen && <Contacts user={user} onClose={()=>setContactsOpen(false)} />}
+
       {membersOpen && <Members onClose={() => setMembersOpen(false)} />}
     </div>
   )

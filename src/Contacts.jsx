@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api.js'
 
 const teams=['1. Mannschaft','AH','Bambini','F-Jugend','E-Jugend','D-Jugend','C-Jugend','Damen','Vorstand']
-export default function Contacts({ user, onClose }) {
+export default function Contacts({ user, onClose, inline = false }) {
   const dialog=useRef(null)
   const [contacts,setContacts]=useState([])
   const [loading,setLoading]=useState(true)
@@ -17,10 +17,10 @@ export default function Contacts({ user, onClose }) {
     const result=await api('contacts');setContacts(result.contacts);setLoading(false)
   },[])
   useEffect(()=>{
-    dialog.current.showModal();let active=true
+    if (!inline) dialog.current.showModal();let active=true
     api('contacts').then(r=>{if(active)setContacts(r.contacts)}).catch(e=>{if(active)setError(e.message)}).finally(()=>{if(active)setLoading(false)})
     return ()=>{active=false}
-  },[])
+  },[inline])
   useEffect(()=>{if(editing)formRef.current?.scrollIntoView({block:'nearest'})},[editing])
   const own=contacts.find(c=>c.user_id===user.id)
   const needle=search.trim().toLocaleLowerCase('de-DE')
@@ -41,10 +41,11 @@ export default function Contacts({ user, onClose }) {
       setRemoving(null);await load();setNotice('Kontakteintrag entfernt. Der Kalenderzugang bleibt bestehen.')
     } catch(e) {setError(e.message);await load().catch(()=>{})} finally {setBusy(false)}
   }
-  return <dialog className="contacts-dialog" ref={dialog} onCancel={onClose} aria-labelledby="contacts-title"><div className="edit-form">
-    <div className="contacts-heading"><h2 id="contacts-title">Kontaktbuch</h2><button type="button" className="secondary" disabled={busy} onClick={onClose}>Schließen</button></div>
+  const Container = inline ? 'section' : 'dialog'
+  return <Container className={inline ? "contacts-section" : "contacts-dialog"} id={inline ? "kontaktbuch" : undefined} ref={dialog} onCancel={inline ? undefined : onClose} aria-labelledby="contacts-title"><div className="edit-form">
+    <div className="contacts-heading"><h2 id="contacts-title">Kontaktbuch</h2>{!inline && <button type="button" className="secondary" disabled={busy} onClick={onClose}>Schließen</button>}</div>
     <p>Internes Kontaktbuch für freigeschaltete Mitglieder. Du entscheidest, welche Angaben du einträgst. Telefonnummer und E-Mail sind freiwillig.</p>
-    <div className="actions"><button type="button" className="btn-primary" disabled={loading||busy} onClick={()=>edit(own || {user_id:user.id,name:user.name,team:'',position:'',phone:'',email:'',version:0})}>{own ? 'Meinen Eintrag bearbeiten' : 'Meinen Eintrag anlegen'}</button><button type="button" className="secondary" disabled={busy} onClick={()=>load().catch(e=>setError(e.message))}>Kontakte aktualisieren</button></div>
+    <div className="actions"><button type="button" className="btn-primary" disabled={loading||busy} onClick={()=>edit(own || {user_id:user.id,name:user.name,team:'',position:'',phone:'',email:'',version:0})}>{own ? 'Meinen Eintrag bearbeiten' : 'Eigenen Kontakt eintragen'}</button><button type="button" className="secondary" disabled={busy} onClick={()=>load().catch(e=>setError(e.message))}>Kontakte aktualisieren</button></div>
     {error && <p className="login-error" role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
     {loading && <p role="status">Kontakte werden geladen …</p>}
     {editing && <form ref={formRef} key={`${editing.user_id}-${editing.version}`} className="edit-form contact-editor" onSubmit={save}>
@@ -58,7 +59,7 @@ export default function Contacts({ user, onClose }) {
     </form>}
     {removing && <section className="contact-editor" aria-label="Kontakteintrag entfernen"><p>Den Kontakteintrag von <strong>{removing.name}</strong> entfernen? Der Kalenderzugang und die Termine bleiben erhalten.</p><div className="actions"><button type="button" className="secondary danger" disabled={busy} onClick={remove}>Eintrag endgültig entfernen</button><button type="button" className="secondary" disabled={busy} onClick={()=>setRemoving(null)}>Abbrechen</button></div></section>}
     <label>Kontakte durchsuchen<input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Name, Mannschaft oder Funktion" /></label>
-    {!loading && !contacts.length && <p>Noch keine Kontakte eingetragen. Mit „Meinen Eintrag anlegen“ kannst du den Anfang machen.</p>}
+    {!loading && !contacts.length && <div className="contacts-empty"><strong>Hier findet ihr eure Ansprechpartner.</strong><p>Noch keine Kontakte eingetragen. Mit „Eigenen Kontakt eintragen“ kannst du den Anfang machen.</p></div>}
     {!loading && contacts.length>0 && !visible.length && <p>Keine passenden Kontakte gefunden.</p>}
     <div className="contact-grid">{visible.map(c=><article className="contact-card" key={c.user_id}>
       <h3>{c.name}{c.user_id===user.id ? ' (ich)' : ''}</h3>
@@ -67,5 +68,5 @@ export default function Contacts({ user, onClose }) {
       {c.email && <p><a href={`mailto:${encodeURIComponent(c.email)}`}>{c.email}</a></p>}
       {(c.user_id===user.id || user.role==='admin') && <div className="actions"><button type="button" className="secondary" disabled={busy} onClick={()=>edit(c)}>Bearbeiten</button><button type="button" className="secondary danger" disabled={busy} onClick={()=>{setRemoving(c);setEditing(null);setError('');setNotice('')}}>Entfernen</button></div>}
     </article>)}</div>
-  </div></dialog>
+  </div></Container>
 }

@@ -727,3 +727,12 @@ button:disabled { opacity: .6; cursor: wait; }
 .contacts-dialog input[type="search"] { width: 100%; padding: .8rem; border: 1px solid var(--line); border-radius: 4px; font: inherit; }
 @media(max-width:520px) { .contacts-dialog .form-columns { grid-template-columns: 1fr; } }
 .contact-editor .check-label input { flex: 0 0 1.2rem; }
+
+.contacts-section { margin: 1.5rem; padding: 1.5rem; border: 1px solid var(--line); border-top: 4px solid var(--grass); border-radius: 12px; background: #ffffffde; scroll-margin-top: 1rem; }
+.contacts-section h2 { color: var(--pitch); font-family: 'Oswald', sans-serif; font-size: 1.8rem; }
+.contacts-section > .edit-form > p { color: var(--muted); line-height: 1.6; }
+.contacts-section > .edit-form > .actions { margin-top: 0; }
+.contacts-section input[type="search"] { width: 100%; max-width: 34rem; }
+.contacts-empty { padding: 1.5rem; border: 1px dashed var(--line); border-radius: 8px; background: #eaf4ef; color: var(--pitch); }
+.contacts-empty p { margin-top: .5rem; line-height: 1.5; }
+@media(max-width:720px) { .contacts-section { margin: 1rem .75rem; padding: 1rem; } .contacts-section .form-columns { grid-template-columns: 1fr; } }

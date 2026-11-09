@@ -43,6 +43,9 @@ export default function Calendar({ user, onLogout }) {
 
   const [types, setTypes] = useState(DEFAULT_EVENT_TYPES)
   const [typesSupported, setTypesSupported] = useState(false)
+  const [recurringSupport,setRecurringSupport] = useState(false)
+  const [notice,setNotice] = useState('')
+  const [deleteScope,setDeleteScope] = useState('single')
   const [typesOpen, setTypesOpen] = useState(false)
   const typesById = useMemo(() => Object.fromEntries(types.map(t=>[t.id,t])),[types])
   const [events, setEvents] = useState([])
@@ -57,12 +60,12 @@ export default function Calendar({ user, onLogout }) {
   const month = cursor.getMonth()
   const monthKey = `${year}-${pad(month + 1)}`
   const load = useCallback(async () => {
-    try { const r = await api(`events?month=${monthKey}`); return { events:r.events, types:r.eventTypes } }
+    try { const r = await api(`events?month=${monthKey}`); return { events:r.events, types:r.eventTypes, recurringSupport:r.recurringSupport } }
     catch(e) { if (e.status === 401) onLogout(); return { error:e.message } }
   }, [monthKey, onLogout])
   const refresh = useCallback(async () => {
     const result = await load()
-    if (result.events) { setEvents(result.events); if (result.types) { setTypes(result.types); setTypesSupported(true) } setError('') }
+    if (result.events) { setEvents(result.events); if (result.types) { setTypes(result.types); setTypesSupported(true) } setRecurringSupport(Boolean(result.recurringSupport)); setError('') }
     else setError(result.error)
     setLoading(false)
   }, [load])
@@ -71,7 +74,7 @@ export default function Calendar({ user, onLogout }) {
     async function sync() {
       const result = await load()
       if (!active) return
-      if (result.events) { setEvents(result.events); if (result.types) { setTypes(result.types); setTypesSupported(true) } setError('') }
+      if (result.events) { setEvents(result.events); if (result.types) { setTypes(result.types); setTypesSupported(true) } setRecurringSupport(Boolean(result.recurringSupport)); setError('') }
       else setError(result.error)
       setLoading(false)
     }
@@ -84,7 +87,7 @@ export default function Calendar({ user, onLogout }) {
   async function logout() { try { await api('logout','POST',{}); onLogout() } catch(e) { setError(e.message) } }
   async function remove() {
     setBusy(true)
-    try { await api(`events/${selected.id}`,'DELETE',{version:selected.version}); setSelectedId(null); setDeleting(false); await refresh() }
+    try { await api(deleteScope==='series' ? `series/${selected.series_id}` : `events/${selected.id}`,'DELETE',{version:deleteScope==='series' ? selected.seriesVersion : selected.version}); setSelectedId(null); setDeleting(false); await refresh() }
     catch(e) { setDeleting(false); await refresh(); setError(e.message) }
     finally { setBusy(false) }
   }
@@ -146,13 +149,20 @@ export default function Calendar({ user, onLogout }) {
           </button>
         </div>
         <div className="legend" aria-label="Legende">
-          {types.filter(t=>t.enabled).map(t=><span key={t.id} className="legend-item" style={typeStyle(t)}>{t.name}</span>)}
+          {types.filter(t=>t.enabled && !t.is_training).map(t=><span key={t.id} className="legend-item" style={typeStyle(t)}>{t.name}</span>)}
         </div>
         <button type="button" className="btn-primary btn-new" onClick={() => setEditing({ date: toKey(year, month, 1) })}>
           + Neuer Termin
         </button>
       </section>
 
+      {recurringSupport && <section className="training-planner" aria-labelledby="training-title">
+        <h3 id="training-title">Training planen</h3><p>Mannschaft auswählen, Uhrzeit und Ort eintragen und die wöchentlichen Termine anlegen.</p>
+        <div className="training-buttons">{types.filter(t=>t.enabled && t.is_training).map(t=><button key={t.id} type="button" style={typeStyle(t)} onClick={()=>setEditing({type:t.id,title:t.name,date:year===Number(todayKey.slice(0,4))&&month===Number(todayKey.slice(5,7))-1 ? todayKey : toKey(year,month,1),makeSeries:true})}>
+          <strong>{t.name}</strong><span>{t.default_weekdays ? JSON.parse(t.default_weekdays).map(d=>WEEKDAYS[d-1]).join(' + ') : 'Serie planen'}</span>
+        </button>)}</div>
+      </section>}
+      {notice && <p className="status" role="status">{notice}</p>}
       <div className="sync-bar"><label>Terminart <select value={filter} onChange={e => setFilter(e.target.value)}><option value="">Alle Termine</option>{types.map(t => <option key={t.id} value={t.id}>{t.name}{t.enabled ? '' : ' (ausgeblendet)'}</option>)}</select></label><span>{loading ? 'Termine werden geladen …' : 'Gemeinsamer Kalender · Abgleich jede Minute'}</span><button type="button" className="secondary" onClick={refresh}>Aktualisieren</button></div>
       {error && <p className="status login-error" role="alert">{error}</p>}
       <div className="cal-layout">
@@ -224,6 +234,7 @@ export default function Calendar({ user, onLogout }) {
             <div className="detail" aria-live="polite">
               <p className="detail-type" style={typeStyle(typesById[selected.type])}>{typesById[selected.type]?.name || selected.type}</p>
               <h4>{selected.title}</h4>
+              {selected.series_id && <p className="series-note">Serientermin · {JSON.parse(selected.seriesWeekdays || '[]').map(d=>WEEKDAYS[d-1]).join(' + ')} · {selected.seriesStart?.split('-').reverse().join('.')} bis {selected.seriesEnd?.split('-').reverse().join('.')}</p>}
               <dl>
                 <div>
                   <dt>Datum</dt>
@@ -244,15 +255,15 @@ export default function Calendar({ user, onLogout }) {
                   <dd>{selected.createdBy}</dd>
                 </div>
               </dl>
-              <div className="actions"><button className="secondary" onClick={() => setEditing(selected)}>Bearbeiten</button><button className="secondary danger" onClick={() => setDeleting(true)}>Löschen</button></div>
-              {deleting && <div role="alert"><p>„{selected.title}“ für alle Personen löschen?</p><div className="actions"><button className="secondary" disabled={busy} onClick={() => setDeleting(false)}>Abbrechen</button><button className="secondary danger" disabled={busy} onClick={remove}>Endgültig löschen</button></div></div>}
+              <div className="actions"><button className="secondary" onClick={() => setEditing(selected)}>Bearbeiten</button><button className="secondary danger" onClick={() => {setDeleteScope('single');setDeleting(true)}}>Löschen</button></div>
+              {deleting && <div role="alert">{selected.series_id && <label>Löschen anwenden auf<select value={deleteScope} onChange={e=>setDeleteScope(e.target.value)}><option value="single">Nur diesen Termin</option><option value="series">Gesamte Serie</option></select></label>}<p>{deleteScope==='series' ? 'Alle noch vorhandenen Termine dieser Serie für alle Personen endgültig löschen?' : `„${selected.title}“ für alle Personen löschen?`}</p><div className="actions"><button className="secondary" disabled={busy} onClick={() => setDeleting(false)}>Abbrechen</button><button className="secondary danger" disabled={busy} onClick={remove}>Endgültig löschen</button></div></div>}
             </div>
           ) : (
             <p className="side-empty">Termin antippen für Details.</p>
           )}
         </aside>
       </div>
-      {editing && <EventForm types={types} event={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); refresh() }} />}
+      {editing && <EventForm recurringSupport={recurringSupport} types={types} event={editing} onClose={() => setEditing(null)} onSaved={r => { setEditing(null); setNotice(r.count ? `${r.count} Termine der Serie gespeichert.` : 'Termin gespeichert.'); refresh() }} />}
       {typesOpen && <EventTypes types={types} onClose={() => setTypesOpen(false)} onChanged={refresh} />}
       {membersOpen && <Members onClose={() => setMembersOpen(false)} />}
     </div>

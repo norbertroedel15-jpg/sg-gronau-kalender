@@ -1,3 +1,4 @@
+import { weeklyDates } from '../shared/recurrence.js'
 import { digest, equalSecret, passwordHash, passwordMatches, randomToken } from './passwords.js'
 
 const DAY = 86400000
@@ -240,14 +241,58 @@ async function handle(request, env) {
     }
     return send(200,{ok:true})
   }
+  if (path === '/api/series' && request.method === 'POST') {
+    const b = await json(request), values = await eventData(b,db)
+    let dates
+    try { dates = weeklyDates(b.date,b.repeatUntil,b.weekdays) } catch(e) { fail(400,e.message) }
+    const seriesId = randomToken(16), occurrences=dates.map(date=>({id:randomToken(16),date}))
+    const results=await db.batch([
+      db.prepare(`INSERT INTO event_series(id,start_date,end_date,weekdays)
+        SELECT ?,?,?,? FROM event_types WHERE id=? AND enabled=1`)
+        .bind(seriesId,b.date,b.repeatUntil,JSON.stringify([...b.weekdays].sort((a,b)=>a-b)),b.type),
+      db.prepare(`INSERT INTO events(id,title,date,time,endTime,place,type,createdBy,series_id)
+        SELECT json_extract(j.value,'$.id'),?,json_extract(j.value,'$.date'),?,?,?,?,?,?
+        FROM json_each(?) j WHERE EXISTS(SELECT 1 FROM event_series WHERE id=?)`)
+        .bind(values[0],values[2],values[3],values[4],values[5],user.name,seriesId,JSON.stringify(occurrences),seriesId)
+    ])
+    if (!results[0].meta.changes) fail(409,'Die Terminart wurde ausgeblendet. Bitte neu laden.')
+    return send(201,{seriesId,count:occurrences.length})
+  }
+  const seriesMatch=path.match(/^\/api\/series\/([a-f0-9]{32})$/)
+  if (seriesMatch && ['PUT','DELETE'].includes(request.method)) {
+    const b=await json(request)
+    if (!Number.isInteger(b.version) || b.version<1) fail(400,'Serienversion fehlt.')
+    const series=await db.prepare('SELECT id,version FROM event_series WHERE id=?').bind(seriesMatch[1]).first()
+    if (!series) fail(404,'Serie nicht gefunden.')
+    let values=null
+    if (request.method==='PUT') {
+      const different=await db.prepare('SELECT id FROM events WHERE series_id=? AND type!=? LIMIT 1').bind(series.id,b.type || '').first()
+      values=await eventData({...b,date:'2000-01-01'},db,different ? null : b.type)
+    }
+    const nonce=randomToken(16)
+    const statements=[db.prepare('UPDATE event_series SET version=version+1,last_mutation=? WHERE id=? AND version=?').bind(nonce,series.id,b.version)]
+    if (request.method==='PUT') {
+      statements.push(db.prepare(`UPDATE events SET title=?,time=?,endTime=?,place=?,type=?,version=version+1
+        WHERE series_id=? AND EXISTS(SELECT 1 FROM event_series WHERE id=? AND last_mutation=?)`)
+        .bind(values[0],values[2],values[3],values[4],values[5],series.id,series.id,nonce))
+    } else {
+      statements.push(db.prepare('DELETE FROM events WHERE series_id=? AND EXISTS(SELECT 1 FROM event_series WHERE id=? AND last_mutation=?)').bind(series.id,series.id,nonce))
+      statements.push(db.prepare('DELETE FROM event_series WHERE id=? AND last_mutation=?').bind(series.id,nonce))
+    }
+    const results=await db.batch(statements)
+    if (!results[0].meta.changes) fail(409,'Die Serie wurde inzwischen geändert. Bitte neu öffnen.')
+    return send(200,{ok:true,count:results[1].meta.changes})
+  }
   if (path === '/api/events' && request.method === 'GET') {
     const month = url.searchParams.get('month')
     if (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) fail(400, 'Ungültiger Monat.')
+    const select=`SELECT e.*,s.version AS seriesVersion,s.start_date AS seriesStart,s.end_date AS seriesEnd,s.weekdays AS seriesWeekdays
+      FROM events e LEFT JOIN event_series s ON e.series_id=s.id`
     const query = month
-      ? db.prepare('SELECT * FROM events WHERE date>=? AND date<=? ORDER BY date,time,id').bind(`${month}-01`,`${month}-31`)
-      : db.prepare('SELECT * FROM events ORDER BY date,time,id')
+      ? db.prepare(`${select} WHERE e.date>=? AND e.date<=? ORDER BY e.date,e.time,e.id`).bind(`${month}-01`,`${month}-31`)
+      : db.prepare(`${select} ORDER BY e.date,e.time,e.id`)
     const [events, types] = await db.batch([query,db.prepare('SELECT * FROM event_types ORDER BY rowid')])
-    return send(200,{events:events.results,eventTypes:types.results})
+    return send(200,{events:events.results,eventTypes:types.results,recurringSupport:true})
   }
   if (path === '/api/events' && request.method === 'POST') {
     const values = await eventData(await json(request),db), id = randomToken(16)
@@ -262,9 +307,16 @@ async function handle(request, env) {
     if (!Number.isInteger(b.version) || b.version < 1) fail(400, 'Terminversion fehlt.')
     const oldEvent = request.method === 'PUT' ? await db.prepare('SELECT type FROM events WHERE id=?').bind(match[1]).first() : null
     const values = request.method === 'PUT' ? await eventData(b,db,oldEvent?.type) : null
-    const result = request.method === 'DELETE'
-      ? await db.prepare('DELETE FROM events WHERE id=? AND version=?').bind(match[1],b.version).run()
-      : await db.prepare('UPDATE events SET title=?,date=?,time=?,endTime=?,place=?,type=?,version=version+1 WHERE id=? AND version=? AND (type=? OR EXISTS(SELECT 1 FROM event_types WHERE id=? AND enabled=1))').bind(...values,match[1],b.version,b.type,b.type).run()
+    const statements=[]
+    if (request.method==='DELETE') {
+      statements.push(db.prepare('UPDATE event_series SET version=version+1 WHERE id=(SELECT series_id FROM events WHERE id=? AND version=?)').bind(match[1],b.version))
+      statements.push(db.prepare('DELETE FROM events WHERE id=? AND version=?').bind(match[1],b.version))
+    } else {
+      statements.push(db.prepare(`UPDATE event_series SET version=version+1 WHERE id=(SELECT series_id FROM events
+        WHERE id=? AND version=? AND (type=? OR EXISTS(SELECT 1 FROM event_types WHERE id=? AND enabled=1)))`).bind(match[1],b.version,b.type,b.type))
+      statements.push(db.prepare('UPDATE events SET title=?,date=?,time=?,endTime=?,place=?,type=?,version=version+1 WHERE id=? AND version=? AND (type=? OR EXISTS(SELECT 1 FROM event_types WHERE id=? AND enabled=1))').bind(...values,match[1],b.version,b.type,b.type))
+    }
+    const results=await db.batch(statements),result=results[1]
     if (!result.meta.changes) {
       const existing = await db.prepare('SELECT id FROM events WHERE id=?').bind(match[1]).first()
       fail(existing ? 409 : 404, existing ? 'Der Termin wurde inzwischen geändert. Bitte neu öffnen.' : 'Termin wurde bereits gelöscht.')

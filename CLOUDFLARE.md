@@ -71,6 +71,20 @@ Namen und Farbe lassen sich mit **Bearbeiten** ändern. **Ausblenden** entfernt 
 
 Die Migration `0003_event_types.sql` ergänzt die drei bisherigen Arten als Stammdaten und ersetzt die bisher auf drei Werte beschränkte Ereignistabelle durch eine Tabelle mit Verweis auf die Terminarten. Alle Spalten, IDs und Versionsnummern vorhandener Termine werden übernommen; Konten, Sitzungen und Einladungen bleiben unverändert. Die Datenübernahme wird im Integrationstest mit einem bereits vorhandenen Termin geprüft.
 
+## Trainingsplanung und Serientermine
+
+Auf der Kalenderseite stehen acht farbige Trainingsfelder bereit: 1. Mannschaft, AH, Bambini, F-, E-, D-, C-Jugend und Damen. Ein Klick öffnet das Formular für eine wöchentliche Serie. Bei der 1. Mannschaft sind Dienstag und Donnerstag vorausgewählt, bei der AH Mittwoch. Für die übrigen Mannschaften sind keine Tage vorgegeben. Uhrzeit und Ort werden bewusst nicht für den Verein erfunden und müssen eingetragen werden.
+
+**Serie anlegen:** Mannschaft wählen (oder bei **Neuer Termin** die Option **Wöchentlich wiederholen** aktivieren), Startdatum, Uhrzeit, Ort, Wochentage und Enddatum angeben. Eine Vorschau zeigt die Anzahl. **Serie anlegen** speichert sämtliche Vorkommen gemeinsam. Das Enddatum ist einschließlich, der Zeitraum ist auf maximal ein Jahr begrenzt. Für weitere Zeiträume kann eine zusätzliche Serie angelegt werden.
+
+**Ändern:** Einen Serientermin öffnen und **Bearbeiten** wählen. Standardmäßig wird nur dieser Termin geändert, etwa bei einer Verlegung. Die Auswahl **Alle vorhandenen Termine dieser Serie** ändert Titel, Uhrzeit, Ort und Terminart für alle noch vorhandenen Vorkommen. Auch zuvor einzeln bearbeitete gemeinsame Felder werden dabei ersetzt. Die einzelnen Kalenderdaten und das Wiederholungsmuster bleiben erhalten; abgesagte/gelöschte Vorkommen werden nicht wieder angelegt. Für ein anderes Wiederholungsmuster eine neue Serie anlegen.
+
+**Löschen:** Standardmäßig wird nur der gewählte Termin gelöscht. Mit **Gesamte Serie** und ausdrücklicher Bestätigung werden alle noch vorhandenen Vorkommen gelöscht. Andere Termine und Serien bleiben erhalten. Gleichzeitige Änderungen werden anhand von Termin- und Serienversionen erkannt; bei einem Konflikt den Termin neu öffnen.
+
+Die Daten sind echte Kalenderdaten, werden monatsübergreifend gespeichert und beim Monatswechsel normal geladen. Die Berechnung verwendet kalenderfeste UTC-Daten für die Wochentage, während die eingegebenen Trainingszeiten als örtliche Uhrzeiten erhalten bleiben. Dadurch verschieben Sommerzeitwechsel die Trainingszeiten nicht.
+
+Migration `0004_recurring_training.sql` ergänzt Mannschaftsarten, Serien und eine nullable Serienzuordnung für Termine. Bestehende Einzeltermine bleiben Einzeltermine. Bereits vorhandene gleichnamige Arten werden verwendet; ihre Namen und Farben werden nicht überschrieben. Es werden keine echten Trainingstermine ohne Uhrzeit, Ort und Zeitraum angelegt. Die Farben lassen sich weiter über **Terminarten verwalten** ändern.
+
 ## Sparsamer Datenabgleich
 
 Es werden nur die Termine des gewählten Monats abgefragt, über einen Datenbankindex. Geöffnete Kalender gleichen sich jede Minute ab. Verborgene Tabs pausieren den regelmäßigen Abgleich; beim Zurückkehren werden die Daten erneut geladen. **Aktualisieren** lädt sofort. So werden weniger kostenlose Anfragen verbraucht. Die Speicherung erfolgt sofort, unabhängig vom Anzeigeabgleich.

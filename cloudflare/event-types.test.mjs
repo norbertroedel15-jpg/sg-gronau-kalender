@@ -7,7 +7,7 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare'
 
 test('Eigene Terminarten: Migration erhält Bestandsdaten, Rechte, Namen, Farben, Ausblenden und Konflikte', async () => {
   const dir=await mkdtemp(join(tmpdir(),'sg-types-'))
-  const options={...convertV4MiniflareOptions({modules:[{type:'ESModule',path:resolve('cloudflare/worker.js')},{type:'ESModule',path:resolve('cloudflare/passwords.js')}],compatibilityDate:'2026-11-08',d1Databases:{DB:'types-db'},bindings:{PASSWORD_PEPPER:'types-test-pepper-at-least-32-characters',SETUP_TOKEN:'types-test-setup-at-least-32-characters'}}),resourcePersistencePath:dir}
+  const options={...convertV4MiniflareOptions({modules:[{type:'ESModule',path:resolve('cloudflare/worker.js')},{type:'ESModule',path:resolve('cloudflare/passwords.js')},{type:'ESModule',path:resolve('shared/recurrence.js')}],compatibilityDate:'2026-11-08',d1Databases:{DB:'types-db'},bindings:{PASSWORD_PEPPER:'types-test-pepper-at-least-32-characters',SETUP_TOKEN:'types-test-setup-at-least-32-characters'}}),resourcePersistencePath:dir}
   let mf=new Miniflare(options)
   const req=(path,method='GET',body,cookie)=>mf.dispatchFetch(`https://calendar.example/api/${path}`,{method,headers:{...(body ? {'Content-Type':'application/json'} : {}),...(cookie ? {Cookie:cookie} : {})},...(body ? {body:JSON.stringify(body)} : {})})
   async function check(path,method,body,cookie,status) {const r=await req(path,method,body,cookie);assert.equal(r.status,status,await r.clone().text());return r.json()}
@@ -22,13 +22,13 @@ test('Eigene Terminarten: Migration erhält Bestandsdaten, Rechte, Namen, Farben
     await db.prepare('INSERT INTO events(id,title,date,time,endTime,place,type,createdBy,version) VALUES(?,?,?,?,?,?,?,?,?)').bind(...Object.values(fixture)).run()
     const accounts=(await db.prepare('SELECT * FROM users').all()).results,sessions=(await db.prepare('SELECT * FROM sessions').all()).results
     for(const name of (await readdir('cloudflare/migrations')).filter(n=>n.endsWith('.sql')&&n>'0002_invitations.sql').sort())await apply(name)
-    assert.deepEqual(await db.prepare('SELECT * FROM events WHERE id=?').bind(fixture.id).first(),fixture)
+    assert.deepEqual(await db.prepare('SELECT * FROM events WHERE id=?').bind(fixture.id).first(),{...fixture,series_id:null})
     assert.deepEqual((await db.prepare('SELECT * FROM users').all()).results,accounts)
     assert.deepEqual((await db.prepare('SELECT * FROM sessions').all()).results,sessions)
     await check('users','POST',{name:'Trainer',email:'trainer@example.org',password:'Trainer-Passwort-2026'},admin,201)
     const member=await login('trainer@example.org','Trainer-Passwort-2026')
     await check('event-types','GET',null,null,401)
-    assert.equal((await check('event-types','GET',null,member,200)).eventTypes.length,3)
+    assert.equal((await check('event-types','GET',null,member,200)).eventTypes.length,11)
     await check('event-types','POST',{name:'Verboten',color:'#000000'},member,403)
     await check('event-types','POST',{name:'',color:'#000000'},admin,400)
     await check('event-types','POST',{name:'Falsch',color:'url(x)'},admin,400)
@@ -54,7 +54,7 @@ test('Eigene Terminarten: Migration erhält Bestandsdaten, Rechte, Namen, Farben
     await check(`event-types/${id}`,'PUT',{name:'Vereinsfeier',color:'#ffffff',enabled:false,version:4},admin,400)
     await check(`event-types/${id}`,'PUT',{name:'Vereinsfeier',color:'#ffffff',enabled:false,version:4},member,403)
     await mf.dispose();mf=new Miniflare(options);db=await mf.getD1Database('DB')
-    assert.deepEqual(await db.prepare('SELECT * FROM events WHERE id=?').bind(fixture.id).first(),fixture)
+    assert.deepEqual(await db.prepare('SELECT * FROM events WHERE id=?').bind(fixture.id).first(),{...fixture,series_id:null})
     assert.equal((await check('event-types','GET',null,member,200)).eventTypes.find(t=>t.id===id).color,'#ffffff')
     assert.equal((await check('events','GET',null,admin,200)).events.length,2)
   } finally {await mf.dispose();await rm(dir,{recursive:true,force:true})}

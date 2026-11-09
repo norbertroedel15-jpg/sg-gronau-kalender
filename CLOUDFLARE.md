@@ -89,6 +89,16 @@ Die allgemeine Schaltfläche **Training** in der oberen Farbleiste ist ausgeblen
 
 Migration `0004_recurring_training.sql` ergänzt Mannschaftsarten, Serien und eine nullable Serienzuordnung für Termine. Bestehende Einzeltermine bleiben Einzeltermine. Bereits vorhandene gleichnamige Arten werden verwendet; ihre Namen und Farben werden nicht überschrieben. Es werden keine echten Trainingstermine ohne Uhrzeit, Ort und Zeitraum angelegt. Die Farben lassen sich weiter über **Terminarten verwalten** ändern.
 
+## Internes Kontaktbuch
+
+Über **Kontaktbuch** im Kopfbereich können alle angemeldeten und freigeschalteten Mitglieder die freiwilligen Kontakteinträge sehen und durchsuchen. Es wird kein Eintrag automatisch aus einem Benutzerkonto erstellt. Auch die Anmelde-E-Mail wird nicht automatisch übernommen.
+
+Mit **Meinen Eintrag anlegen** trägt jede Person Name, Mannschaft/Bereich und Funktion ein. Telefonnummer und Kontakt-E-Mail sind freiwillig. Vor dem Speichern wird ausdrücklich bestätigt, dass die angegebenen Daten im internen Kontaktbuch sichtbar sein dürfen. Die Person kann ihren eigenen Eintrag jederzeit bearbeiten oder entfernen. Die Vereinsverwaltung kann vorhandene Einträge korrigieren oder entfernen; neue Einträge legt die jeweilige Person selbst an.
+
+Kontakte sind serverseitig gegen anonymen Zugriff geschützt. Mitglieder können keine fremden Einträge verändern, auch nicht durch selbst erzeugte API-Aufrufe. Gleichzeitige Änderungen werden anhand der Eintragsversion erkannt. Beim Sperren eines Kalenderkontos wird auch dessen Kontakt im Kontaktbuch ausgeblendet. Das Entfernen eines Kontakteintrags löscht weder den Kalenderzugang noch Termine. Die Daten sind nur in der privaten D1-Datenbank, nicht im öffentlichen GitHub-Projekt gespeichert.
+
+Migration `0006_contacts.sql` ergänzt ausschließlich die Kontakte-Tabelle; es werden keine vorhandenen Benutzerkonten oder Termine verändert. Eine Datenbanksicherung enthält die Kontaktdaten und muss entsprechend privat aufbewahrt werden. Es gibt keinen automatischen E-Mail-Versand oder Import externer Adressbücher.
+
 ## Sparsamer Datenabgleich
 
 Es werden nur die Termine des gewählten Monats abgefragt, über einen Datenbankindex. Geöffnete Kalender gleichen sich jede Minute ab. Verborgene Tabs pausieren den regelmäßigen Abgleich; beim Zurückkehren werden die Daten erneut geladen. **Aktualisieren** lädt sofort. So werden weniger kostenlose Anfragen verbraucht. Die Speicherung erfolgt sofort, unabhängig vom Anzeigeabgleich.

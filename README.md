@@ -11,6 +11,7 @@ Die Cloudflare-Version ist für Workers Free mit D1 vorbereitet, werbefrei und u
 - Personen per einmaligem Einladungslink einladen; sie wählen ihr Passwort selbst. Links gelten sieben Tage, können ersetzt oder widerrufen werden.
 - Bestehenden Personen Links für ein neues eigenes Passwort geben und Mitglieder sperren. Kein automatischer E-Mail-Versand.
 - Acht farbige Mannschaftskacheln mit **Training** und **Spiel**, passenden Spielarten und wöchentlichen Serien mit mehreren Wochentagen, Enddatum sowie Einzel- und Serienbearbeitung.
+- Internes Kontaktbuch mit freiwilligen eigenen Einträgen, Suche und Verwaltungsrechten; Kontaktdaten nur für angemeldete Mitglieder.
 - Eigene Terminarten mit Namen und Farbe anlegen, bearbeiten und ausblenden; vorhandene Termine bleiben erhalten.
 - Abgleich jede Minute, nur für den sichtbaren Monat; Pause in verborgenen Tabs.
 - Tests: `npm test`, `npm run lint`, `npm run cf:check`.

@@ -715,3 +715,15 @@ button:disabled { opacity: .6; cursor: wait; }
 .team-card p { color: inherit; font-size: .8rem; margin: .45rem 0 .7rem; }
 .team-card-actions { display: flex; flex-wrap: wrap; gap: .45rem; }
 .team-card-actions button { display: inline-flex; justify-content: center; padding: .55rem .7rem; border: 1px solid currentColor; background: transparent; color: inherit; font-weight: 700; }
+.contacts-dialog { width: min(64rem,calc(100% - 2rem)); }
+.contacts-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.contact-editor { border: 1px solid var(--grass); background: #ffffffc9; border-radius: 8px; padding: 1rem; }
+.contact-editor p { color: var(--muted); font-size: .85rem; }
+.contact-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,17rem),1fr)); gap: .8rem; }
+.contact-card { min-width: 0; padding: 1rem; background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
+.contact-card h3 { color: var(--pitch); }
+.contact-card p { margin: .35rem 0; }
+.contacts-dialog > .edit-form > label { display: grid; gap: .4rem; }
+.contacts-dialog input[type="search"] { width: 100%; padding: .8rem; border: 1px solid var(--line); border-radius: 4px; font: inherit; }
+@media(max-width:520px) { .contacts-dialog .form-columns { grid-template-columns: 1fr; } }
+.contact-editor .check-label input { flex: 0 0 1.2rem; }

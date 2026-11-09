@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from './api.js'
 import EventForm from './EventForm.jsx'
 import EventTypes from './EventTypes.jsx'
+import Contacts from './Contacts.jsx'
 import Members from './Members.jsx'
 import BrandMark from './BrandMark.jsx'
 import {
@@ -53,6 +54,7 @@ export default function Calendar({ user, onLogout }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null)
+  const [contactsOpen,setContactsOpen] = useState(false)
   const [membersOpen, setMembersOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -133,6 +135,7 @@ export default function Calendar({ user, onLogout }) {
       <header className="cal-top">
         <BrandMark variant="header" />
         <div className="cal-user">
+          <button type="button" className="btn-ghost" onClick={()=>setContactsOpen(true)}>Kontaktbuch</button>
           {user.role === 'admin' && typesSupported && <button type="button" className="btn-ghost" onClick={() => setTypesOpen(true)}>Terminarten verwalten</button>}
           {user.role === 'admin' && <button type="button" className="btn-ghost" onClick={() => setMembersOpen(true)}>Zugänge verwalten</button>}
           <span className="cal-user-name">{user.name}</span>
@@ -279,6 +282,7 @@ export default function Calendar({ user, onLogout }) {
       </div>
       {editing && <EventForm recurringSupport={recurringSupport} types={types} event={editing} onClose={() => setEditing(null)} onSaved={r => { setEditing(null); setNotice(r.count ? `${r.count} Termine der Serie gespeichert.` : 'Termin gespeichert.'); refresh() }} />}
       {typesOpen && <EventTypes types={types} onClose={() => setTypesOpen(false)} onChanged={refresh} />}
+      {contactsOpen && <Contacts user={user} onClose={()=>setContactsOpen(false)} />}
       {membersOpen && <Members onClose={() => setMembersOpen(false)} />}
     </div>
   )

@@ -710,3 +710,8 @@ button:disabled { opacity: .6; cursor: wait; }
 @media(max-width:720px) { .training-planner { margin: .7rem; } .training-buttons { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 .type-shortcut { border: 0; cursor: pointer; text-align: left; }
 .type-shortcut:hover, .training-buttons button:hover { filter: brightness(1.08); }
+.team-card { padding: .9rem; border-radius: 6px; min-width: 0; overflow-wrap: anywhere; }
+.team-card h4 { margin: 0; font-size: 1rem; }
+.team-card p { color: inherit; font-size: .8rem; margin: .45rem 0 .7rem; }
+.team-card-actions { display: flex; flex-wrap: wrap; gap: .45rem; }
+.team-card-actions button { display: inline-flex; justify-content: center; padding: .55rem .7rem; border: 1px solid currentColor; background: transparent; color: inherit; font-weight: 700; }

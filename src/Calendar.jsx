@@ -48,6 +48,7 @@ export default function Calendar({ user, onLogout }) {
   const [deleteScope,setDeleteScope] = useState('single')
   const [typesOpen, setTypesOpen] = useState(false)
   const typesById = useMemo(() => Object.fromEntries(types.map(t=>[t.id,t])),[types])
+  const teamGameIds = useMemo(()=>new Set(types.filter(t=>t.is_training&&t.game_type_id).map(t=>t.game_type_id)),[types])
   const [events, setEvents] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -124,7 +125,7 @@ export default function Calendar({ user, onLogout }) {
 
   function openType(type) {
     const training = Boolean(type.is_training) || /training/i.test(type.name)
-    setEditing({ type:type.id, title:type.name, date:year===Number(todayKey.slice(0,4))&&month===Number(todayKey.slice(5,7))-1 ? todayKey : toKey(year,month,1), makeSeries:training&&recurringSupport })
+    setEditing({ type:type.id, title:type.name, date:year===Number(todayKey.slice(0,4))&&month===Number(todayKey.slice(5,7))-1 ? todayKey : toKey(year,month,1), makeSeries:training&&recurringSupport,blankTimes:!training })
   }
 
   return (
@@ -154,7 +155,7 @@ export default function Calendar({ user, onLogout }) {
           </button>
         </div>
         <div className="legend" aria-label="Legende">
-          {types.filter(t=>t.enabled && !t.is_training).map(t=><button key={t.id} type="button" className="legend-item type-shortcut" style={typeStyle(t)} title={`Termin für ${t.name} anlegen`} onClick={()=>openType(t)}>{t.name}</button>)}
+          {types.filter(t=>t.enabled && !t.is_training && t.id!=='training' && !teamGameIds.has(t.id)).map(t=><button key={t.id} type="button" className="legend-item type-shortcut" style={typeStyle(t)} title={`Termin für ${t.name} anlegen`} onClick={()=>openType(t)}>{t.name}</button>)}
         </div>
         <button type="button" className="btn-primary btn-new" onClick={() => setEditing({ date: toKey(year, month, 1) })}>
           + Neuer Termin
@@ -162,10 +163,18 @@ export default function Calendar({ user, onLogout }) {
       </section>
 
       {recurringSupport && <section className="training-planner" aria-labelledby="training-title">
-        <h3 id="training-title">Training planen</h3><p>Mannschaft auswählen, Uhrzeit und Ort eintragen und die wöchentlichen Termine anlegen.</p>
-        <div className="training-buttons">{types.filter(t=>t.enabled && t.is_training).map(t=><button key={t.id} type="button" style={typeStyle(t)} onClick={()=>openType(t)}>
-          <strong>{t.name}</strong><span>{t.default_weekdays ? `${JSON.parse(t.default_weekdays).map(d=>WEEKDAYS[d-1]).join(' + ')} · Serie planen` : 'Serie planen'}</span>
-        </button>)}</div>
+        <h3 id="training-title">Training und Spiel planen</h3><p>Mannschaft wählen und Training oder Spiel eintragen. Trainings können wöchentlich wiederholt werden.</p>
+        <div className="training-buttons">{types.filter(t=>t.enabled && t.is_training).map(t=>{
+          const game=typesById[t.game_type_id],team=t.name.replace(/^Training\s*/i,'')
+          return <article key={t.id} className="team-card" style={typeStyle(t)} aria-label={team}>
+            <h4>{team}</h4>
+            <p>{t.default_weekdays ? `Training: ${JSON.parse(t.default_weekdays).map(d=>WEEKDAYS[d-1]).join(' + ')}` : 'Trainingstage frei wählen'}</p>
+            <div className="team-card-actions">
+              <button type="button" aria-label={`Training ${team} planen`} onClick={()=>openType(t)}>Training</button>
+              <button type="button" aria-label={`Spiel ${team} planen`} disabled={!game?.enabled} onClick={()=>openType(game)} title={game?.enabled ? 'Spieltermin eintragen' : 'Spielart ist ausgeblendet'}>Spiel</button>
+            </div>
+          </article>
+        })}</div>
       </section>}
       {notice && <p className="status" role="status">{notice}</p>}
       <div className="sync-bar"><label>Terminart <select value={filter} onChange={e => setFilter(e.target.value)}><option value="">Alle Termine</option>{types.map(t => <option key={t.id} value={t.id}>{t.name}{t.enabled ? '' : ' (ausgeblendet)'}</option>)}</select></label><span>{loading ? 'Termine werden geladen …' : 'Gemeinsamer Kalender · Abgleich jede Minute'}</span><button type="button" className="secondary" onClick={refresh}>Aktualisieren</button></div>

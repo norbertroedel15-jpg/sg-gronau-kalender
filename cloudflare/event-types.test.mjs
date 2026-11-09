@@ -28,7 +28,7 @@ test('Eigene Terminarten: Migration erhält Bestandsdaten, Rechte, Namen, Farben
     await check('users','POST',{name:'Trainer',email:'trainer@example.org',password:'Trainer-Passwort-2026'},admin,201)
     const member=await login('trainer@example.org','Trainer-Passwort-2026')
     await check('event-types','GET',null,null,401)
-    assert.equal((await check('event-types','GET',null,member,200)).eventTypes.length,11)
+    assert.equal((await check('event-types','GET',null,member,200)).eventTypes.length,19)
     await check('event-types','POST',{name:'Verboten',color:'#000000'},member,403)
     await check('event-types','POST',{name:'',color:'#000000'},admin,400)
     await check('event-types','POST',{name:'Falsch',color:'url(x)'},admin,400)

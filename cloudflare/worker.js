@@ -141,6 +141,40 @@ async function handle(request, env) {
     await db.prepare('DELETE FROM sessions WHERE token=?').bind(token).run()
     return send(200,{}, { 'Set-Cookie':cookie(request,'',0) })
   }
+  if (path === '/api/contacts' && request.method === 'GET') {
+    const result=await db.prepare(`SELECT c.* FROM contacts c JOIN users u ON u.id=c.user_id
+      WHERE u.disabled=0 ORDER BY c.name COLLATE NOCASE,c.user_id`).all()
+    return send(200,{contacts:result.results})
+  }
+  const contactMatch=path.match(/^\/api\/contacts\/(me|\d+)$/)
+  if (contactMatch && ['PUT','DELETE'].includes(request.method)) {
+    const ownerId=contactMatch[1]==='me' ? user.id : Number(contactMatch[1])
+    if (ownerId!==user.id && user.role!=='admin') fail(403,'Du kannst nur deinen eigenen Kontakteintrag ändern.')
+    const b=await json(request)
+    if (!Number.isInteger(b.version) || b.version<0) fail(400,'Eintragsversion fehlt.')
+    if (!await db.prepare('SELECT id FROM users WHERE id=? AND disabled=0').bind(ownerId).first()) fail(404,'Person nicht gefunden.')
+    if (request.method==='DELETE') {
+      const result=await db.prepare('DELETE FROM contacts WHERE user_id=? AND version=?').bind(ownerId,b.version).run()
+      if (!result.meta.changes) {
+        const found=await db.prepare('SELECT user_id FROM contacts WHERE user_id=?').bind(ownerId).first()
+        fail(found ? 409 : 404,found ? 'Dieser Eintrag wurde inzwischen geändert. Bitte neu öffnen.' : 'Eintrag wurde bereits entfernt.')
+      }
+      return send(200,{ok:true})
+    }
+    if (ownerId!==user.id && b.version===0) fail(403,'Neue Einträge können nur von der jeweiligen Person selbst angelegt werden.')
+    if (b.shared!==true) fail(400,'Bitte bestätigen, dass diese Angaben im internen Kontaktbuch sichtbar sein dürfen.')
+    const fields=['name','team','position','phone','email'],limits=[100,100,100,50,254]
+    if (!fields.every((key,i)=>typeof b[key]==='string'&&b[key].length<=limits[i]) || !b.name.trim()) fail(400,'Bitte einen Namen eintragen und die Feldlängen prüfen.')
+    const values=fields.map(key=>b[key].trim())
+    if (values[4] && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values[4])) fail(400,'Bitte eine gültige E-Mail eintragen oder das Feld leer lassen.')
+    if (values[3] && !/^[+0-9 ()/.-]+$/.test(values[3])) fail(400,'Bitte eine Telefonnummer mit Ziffern und üblichen Trennzeichen eintragen oder das Feld leer lassen.')
+    const result=b.version===0
+      ? await db.prepare(`INSERT INTO contacts(user_id,name,team,position,phone,email,updated_at) VALUES(?,?,?,?,?,?,?)
+          ON CONFLICT(user_id) DO NOTHING`).bind(ownerId,...values,Date.now()).run()
+      : await db.prepare('UPDATE contacts SET name=?,team=?,position=?,phone=?,email=?,updated_at=?,version=version+1 WHERE user_id=? AND version=?').bind(...values,Date.now(),ownerId,b.version).run()
+    if (!result.meta.changes) fail(409,'Dieser Eintrag wurde inzwischen geändert oder entfernt. Bitte neu öffnen.')
+    return send(b.version===0 ? 201 : 200,{ok:true})
+  }
   if (path === '/api/users') {
     if (user.role !== 'admin') fail(403, 'Nur für die Vereinsverwaltung.')
     if (request.method === 'GET') return send(200, { manageAccounts:true, invitationSupport:true,

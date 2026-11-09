@@ -4,7 +4,12 @@ import { DEFAULT_EVENT_TYPES, WEEKDAYS } from './data.js'
 import { addDays, weeklyDates } from '../shared/recurrence.js'
 
 function defaults(type) {
-  try { return JSON.parse(type?.default_weekdays || '[]') } catch { return [] }
+  try {
+    if (type?.default_weekdays) return JSON.parse(type.default_weekdays)
+    if (/training.*1\.\s*mannschaft/i.test(type?.name || '')) return [2,4]
+    if (/training.*\bAH\b/i.test(type?.name || '')) return [3]
+    return []
+  } catch { return [] }
 }
 export default function EventForm({ event, onClose, onSaved, types = DEFAULT_EVENT_TYPES, recurringSupport = false }) {
   const dialog = useRef(null)

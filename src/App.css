@@ -708,3 +708,5 @@ button:disabled { opacity: .6; cursor: wait; }
 .edit-form .check-label { display: flex; align-items: center; gap: .6rem; }
 .series-note { font-size: .85rem; color: var(--muted); line-height: 1.5; }
 @media(max-width:720px) { .training-planner { margin: .7rem; } .training-buttons { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+.type-shortcut { border: 0; cursor: pointer; text-align: left; }
+.type-shortcut:hover, .training-buttons button:hover { filter: brightness(1.08); }

@@ -122,6 +122,11 @@ export default function Calendar({ user, onLogout }) {
     setSelectedId(null)
   }
 
+  function openType(type) {
+    const training = Boolean(type.is_training) || /training/i.test(type.name)
+    setEditing({ type:type.id, title:type.name, date:year===Number(todayKey.slice(0,4))&&month===Number(todayKey.slice(5,7))-1 ? todayKey : toKey(year,month,1), makeSeries:training&&recurringSupport })
+  }
+
   return (
     <div className="cal-page">
       <header className="cal-top">
@@ -149,7 +154,7 @@ export default function Calendar({ user, onLogout }) {
           </button>
         </div>
         <div className="legend" aria-label="Legende">
-          {types.filter(t=>t.enabled && !t.is_training).map(t=><span key={t.id} className="legend-item" style={typeStyle(t)}>{t.name}</span>)}
+          {types.filter(t=>t.enabled && !t.is_training).map(t=><button key={t.id} type="button" className="legend-item type-shortcut" style={typeStyle(t)} title={`Termin für ${t.name} anlegen`} onClick={()=>openType(t)}>{t.name}</button>)}
         </div>
         <button type="button" className="btn-primary btn-new" onClick={() => setEditing({ date: toKey(year, month, 1) })}>
           + Neuer Termin
@@ -158,8 +163,8 @@ export default function Calendar({ user, onLogout }) {
 
       {recurringSupport && <section className="training-planner" aria-labelledby="training-title">
         <h3 id="training-title">Training planen</h3><p>Mannschaft auswählen, Uhrzeit und Ort eintragen und die wöchentlichen Termine anlegen.</p>
-        <div className="training-buttons">{types.filter(t=>t.enabled && t.is_training).map(t=><button key={t.id} type="button" style={typeStyle(t)} onClick={()=>setEditing({type:t.id,title:t.name,date:year===Number(todayKey.slice(0,4))&&month===Number(todayKey.slice(5,7))-1 ? todayKey : toKey(year,month,1),makeSeries:true})}>
-          <strong>{t.name}</strong><span>{t.default_weekdays ? JSON.parse(t.default_weekdays).map(d=>WEEKDAYS[d-1]).join(' + ') : 'Serie planen'}</span>
+        <div className="training-buttons">{types.filter(t=>t.enabled && t.is_training).map(t=><button key={t.id} type="button" style={typeStyle(t)} onClick={()=>openType(t)}>
+          <strong>{t.name}</strong><span>{t.default_weekdays ? `${JSON.parse(t.default_weekdays).map(d=>WEEKDAYS[d-1]).join(' + ')} · Serie planen` : 'Serie planen'}</span>
         </button>)}</div>
       </section>}
       {notice && <p className="status" role="status">{notice}</p>}

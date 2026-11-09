@@ -739,3 +739,15 @@ button:disabled { opacity: .6; cursor: wait; }
 
 .calendar-main { min-width: 0; }
 .calendar-main > .contacts-section { margin: 1rem 0 0; }
+
+.handbook-dialog { width: min(58rem,calc(100% - 2rem)); line-height: 1.65; }
+.handbook-dialog h2, .handbook-dialog h3 { color: var(--pitch); }
+.handbook-dialog .contacts-heading { align-items: flex-start; }
+.handbook-topics { display: flex; flex-wrap: wrap; gap: .5rem; }
+.handbook-topics a { padding: .4rem .7rem; border: 1px solid var(--line); border-radius: 6px; background: white; font-size: .9rem; text-decoration: none; }
+.handbook-topics a:hover { background: var(--mist); }
+.handbook-chapter { border-top: 1px solid var(--line); padding-top: 1rem; scroll-margin-top: 1rem; }
+.handbook-chapter ol { padding-left: 1.5rem; }
+.handbook-chapter li { padding-left: .2rem; margin-bottom: .65rem; }
+.handbook-note { padding: .8rem 1rem; border-left: 3px solid var(--grass); background: #ffffffc9; font-size: .9rem; }
+@media(max-width:520px) { .handbook-dialog { padding: 1rem; } .handbook-dialog .contacts-heading { flex-wrap: wrap; } }

@@ -3,6 +3,7 @@ import { api } from './api.js'
 import EventForm from './EventForm.jsx'
 import EventTypes from './EventTypes.jsx'
 import Contacts from './Contacts.jsx'
+import Handbook from './Handbook.jsx'
 import Members from './Members.jsx'
 import BrandMark from './BrandMark.jsx'
 import {
@@ -55,6 +56,7 @@ export default function Calendar({ user, onLogout }) {
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null)
   const [membersOpen, setMembersOpen] = useState(false)
+  const [handbookOpen,setHandbookOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [busy, setBusy] = useState(false)
   const [filter, setFilter] = useState('')
@@ -134,6 +136,7 @@ export default function Calendar({ user, onLogout }) {
       <header className="cal-top">
         <BrandMark variant="header" />
         <div className="cal-user">
+          <button type="button" className="btn-ghost" onClick={()=>setHandbookOpen(true)}>Handbuch</button>
           <button type="button" className="btn-ghost" onClick={()=>{document.getElementById('kontaktbuch')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});document.querySelector('#kontaktbuch input[type="search"]')?.focus({preventScroll:true})}}>Kontaktbuch</button>
           {user.role === 'admin' && typesSupported && <button type="button" className="btn-ghost" onClick={() => setTypesOpen(true)}>Terminarten verwalten</button>}
           {user.role === 'admin' && <button type="button" className="btn-ghost" onClick={() => setMembersOpen(true)}>Zugänge verwalten</button>}
@@ -285,6 +288,7 @@ export default function Calendar({ user, onLogout }) {
       {editing && <EventForm recurringSupport={recurringSupport} types={types} event={editing} onClose={() => setEditing(null)} onSaved={r => { setEditing(null); setNotice(r.count ? `${r.count} Termine der Serie gespeichert.` : 'Termin gespeichert.'); refresh() }} />}
       {typesOpen && <EventTypes types={types} onClose={() => setTypesOpen(false)} onChanged={refresh} />}
 
+      {handbookOpen && <Handbook onClose={()=>setHandbookOpen(false)} />}
       {membersOpen && <Members onClose={() => setMembersOpen(false)} />}
     </div>
   )

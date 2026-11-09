@@ -155,7 +155,7 @@ export default function Calendar({ user, onLogout }) {
           </button>
         </div>
         <div className="legend" aria-label="Legende">
-          {types.filter(t=>t.enabled && !t.is_training && t.id!=='training' && !teamGameIds.has(t.id)).map(t=><button key={t.id} type="button" className="legend-item type-shortcut" style={typeStyle(t)} title={`Termin für ${t.name} anlegen`} onClick={()=>openType(t)}>{t.name}</button>)}
+          {types.filter(t=>t.enabled && !t.is_training && !['training','spiel'].includes(t.id) && !teamGameIds.has(t.id)).map(t=><button key={t.id} type="button" className="legend-item type-shortcut" style={typeStyle(t)} title={`Termin für ${t.name} anlegen`} onClick={()=>openType(t)}>{t.name}</button>)}
         </div>
         <button type="button" className="btn-primary btn-new" onClick={() => setEditing({ date: toKey(year, month, 1) })}>
           + Neuer Termin

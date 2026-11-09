@@ -26,11 +26,19 @@ test('Serientermine: Mehrtagestraining, Ausnahmen, Serienänderung, Konflikte, L
   assert.equal(new Set(types.filter(t=>t.is_training).map(t=>t.color)).size,8)
   assert.equal(types.find(t=>t.id==='training_first_team').default_weekdays,'[2,4]')
   assert.equal(types.find(t=>t.id==='training_ah').default_weekdays,'[3]')
+  for (const training of types.filter(t=>t.is_training)) {
+    const game=types.find(t=>t.id===training.game_type_id)
+    assert.ok(game?.enabled);assert.match(game.name,/^Spiel /);assert.equal(game.color,training.color);assert.equal(game.is_training,0)
+  }
   const body={title:'Training 1. Mannschaft',date:'2026-11-09',time:'19:00',endTime:'20:30',place:'Kunstrasen',type:'training_first_team',repeatUntil:'2026-11-20',weekdays:[2,4]}
   await check('series','POST',body,null,401)
   await check('series','POST',{...body,weekdays:[]},trainer,400)
   await check('series','POST',{...body,repeatUntil:'2028-01-01'},trainer,400)
   const standalone=await check('events','POST',{...body,title:'Einzeltermin',type:'training'},trainer,201)
+  const game=await check('events','POST',{...body,title:'Spiel 1. Mannschaft gegen Testverein',type:types.find(t=>t.id==='training_first_team').game_type_id},trainer,201)
+  const gameRow=(await check('events','GET',null,trainer,200)).events.find(e=>e.id===game.id)
+  assert.equal(gameRow.type,'game_first_team');assert.equal(gameRow.series_id,null)
+  await check(`events/${game.id}`,'DELETE',{version:gameRow.version},trainer,200)
   const created=await check('series','POST',body,trainer,201)
   assert.equal(created.count,4)
   let result=await check('events?month=2026-11','GET',null,trainer,200),events=result.events.filter(e=>e.series_id===created.seriesId)

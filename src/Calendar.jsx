@@ -51,7 +51,6 @@ export default function Calendar({ user, onLogout }) {
   const [deleteScope,setDeleteScope] = useState('single')
   const [typesOpen, setTypesOpen] = useState(false)
   const typesById = useMemo(() => Object.fromEntries(types.map(t=>[t.id,t])),[types])
-  const teamGameIds = useMemo(()=>new Set(types.filter(t=>t.is_training&&t.game_type_id).map(t=>t.game_type_id)),[types])
   const [events, setEvents] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -173,9 +172,6 @@ export default function Calendar({ user, onLogout }) {
           <button type="button" className="nav-btn" onClick={() => shiftMonth(1)} aria-label="Nächster Monat">
             ›
           </button>
-        </div>
-        <div className="legend" aria-label="Legende">
-          {types.filter(t=>t.enabled && !t.is_training && !['training','spiel'].includes(t.id) && !teamGameIds.has(t.id)).map(t=><button key={t.id} type="button" className="legend-item type-shortcut" style={typeStyle(t)} title={`Termin für ${t.name} anlegen`} onClick={()=>openType(t)}>{t.name}</button>)}
         </div>
         <button type="button" className="btn-primary btn-new" onClick={() => setEditing({ date: toKey(year, month, 1) })}>
           + Neuer Termin

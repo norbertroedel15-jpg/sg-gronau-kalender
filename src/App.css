@@ -767,3 +767,5 @@ button:disabled { opacity: .6; cursor: wait; }
 .mail-conversation textarea { width: 100%; min-width: 0; padding: .8rem; font: inherit; border: 1px solid var(--line); border-radius: 5px; resize: vertical; }
 .mail-hint { color: var(--muted); font-size: .8rem; }
 @media(max-width:650px) { .mail-layout { grid-template-columns: 1fr; } .mail-threads { max-height: 10rem; } .messages-dialog { padding: 1rem; } .mail-history { max-height: 22rem; } }
+
+.mail-read-status { display: block; margin-top: .6rem; color: var(--pitch); font-size: .78rem; font-weight: 600; }

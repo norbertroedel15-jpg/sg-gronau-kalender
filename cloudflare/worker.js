@@ -149,6 +149,57 @@ async function handle(request, env) {
     await db.prepare('DELETE FROM sessions WHERE token=?').bind(token).run()
     return send(200,{}, { 'Set-Cookie':cookie(request,'',0) })
   }
+  if (path === '/api/messages/summary' && request.method === 'GET') {
+    const row=await db.prepare('SELECT COUNT(*) AS unread FROM messages WHERE recipient_id=? AND read_at IS NULL').bind(user.id).first()
+    return send(200,row)
+  }
+  if (path === '/api/messages' && request.method === 'GET') {
+    const recipients=await db.prepare('SELECT id,name FROM users WHERE disabled=0 AND id<>? ORDER BY name COLLATE NOCASE,id').bind(user.id).all()
+    const threads=await db.prepare(`WITH mine AS (
+      SELECT *,CASE WHEN sender_id=? THEN recipient_id ELSE sender_id END AS peer_id FROM messages WHERE sender_id=? OR recipient_id=?
+    ) SELECT u.id,u.name,u.disabled,m.body,m.created_at,m.id AS last_id,
+      (SELECT COUNT(*) FROM messages n WHERE n.sender_id=u.id AND n.recipient_id=? AND n.read_at IS NULL) AS unread
+      FROM mine m JOIN users u ON u.id=m.peer_id
+      WHERE m.id=(SELECT MAX(x.id) FROM mine x WHERE x.peer_id=m.peer_id)
+      ORDER BY m.id DESC`).bind(user.id,user.id,user.id,user.id).all()
+    return send(200,{recipients:recipients.results,threads:threads.results})
+  }
+  const messageThread=path.match(/^\/api\/messages\/(\d+)(\/read)?$/)
+  if (messageThread) {
+    const peerId=Number(messageThread[1])
+    if (!Number.isSafeInteger(peerId) || peerId===user.id) fail(400,'Bitte eine andere Person auswählen.')
+    const peer=await db.prepare('SELECT id,name,disabled FROM users WHERE id=?').bind(peerId).first()
+    if (!peer) fail(404,'Person nicht gefunden.')
+    if (request.method==='GET' && !messageThread[2]) {
+      const raw=url.searchParams.get('before'),before=raw===null ? Number.MAX_SAFE_INTEGER : Number(raw)
+      if (!Number.isSafeInteger(before)||before<1) fail(400,'Ungültige Nachrichtenseite.')
+      const result=await db.prepare(`SELECT id,sender_id,recipient_id,body,created_at,read_at FROM messages
+        WHERE ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)) AND id<? ORDER BY id DESC LIMIT 101`).bind(user.id,peerId,peerId,user.id,before).all()
+      const rows=result.results.slice(0,100).reverse()
+      return send(200,{peer,messages:rows,hasMore:result.results.length>100})
+    }
+    if (request.method==='POST' && messageThread[2]) {
+      const b=await json(request)
+      if (!Number.isSafeInteger(b.through)||b.through<1) fail(400,'Ungültige Nachricht.')
+      await db.prepare('UPDATE messages SET read_at=? WHERE recipient_id=? AND sender_id=? AND id<=? AND read_at IS NULL').bind(Date.now(),user.id,peerId,b.through).run()
+      return send(200,{ok:true})
+    }
+    if (request.method==='POST' && !messageThread[2]) {
+      if (peer.disabled) fail(400,'Dieser Zugang ist gesperrt. Du kannst hier keine neue Nachricht senden.')
+      const b=await json(request)
+      if (typeof b.body!=='string'||!b.body.trim()||b.body.length>4000||typeof b.clientId!=='string'||!/^[a-f0-9-]{36}$/.test(b.clientId)) fail(400,'Bitte eine Nachricht mit höchstens 4000 Zeichen eingeben.')
+      const existing=await db.prepare('SELECT id,recipient_id,body FROM messages WHERE sender_id=? AND client_id=?').bind(user.id,b.clientId).first()
+      if (existing) {
+        if (existing.recipient_id!==peerId||existing.body!==b.body.trim()) fail(409,'Diese Sendeanfrage wurde bereits verwendet.')
+        return send(200,{ok:true,id:existing.id})
+      }
+      await rateLimit(db,`messages:${user.id}`,100)
+      const row=await db.prepare(`INSERT INTO messages(sender_id,recipient_id,body,created_at,client_id)
+        VALUES(?,?,?,?,?) ON CONFLICT(sender_id,client_id) DO NOTHING RETURNING id`).bind(user.id,peerId,b.body.trim(),Date.now(),b.clientId).first()
+      return send(201,{ok:true,id:row?.id})
+    }
+    fail(405,'Methode nicht erlaubt.')
+  }
   if (path === '/api/contacts' && request.method === 'GET') {
     const result=await db.prepare(`SELECT c.* FROM contacts c JOIN users u ON u.id=c.user_id
       WHERE u.disabled=0 ORDER BY c.name COLLATE NOCASE,c.user_id`).all()

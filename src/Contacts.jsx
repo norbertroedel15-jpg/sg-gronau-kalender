@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api.js'
 
 const teams=['1. Mannschaft','AH','Bambini','F-Jugend','E-Jugend','D-Jugend','C-Jugend','Damen','Vorstand']
-export default function Contacts({ user, onClose, inline = false }) {
+export default function Contacts({ user, onClose, inline = false, onMessage }) {
   const dialog=useRef(null)
   const [contacts,setContacts]=useState([])
   const [loading,setLoading]=useState(true)
@@ -66,6 +66,7 @@ export default function Contacts({ user, onClose, inline = false }) {
       {c.team && <p><strong>{c.team}</strong></p>}{c.position && <p>{c.position}</p>}
       {c.phone && <p><a href={`tel:${c.phone.replace(/[^+0-9]/g,'')}`}>{c.phone}</a></p>}
       {c.email && <p><a href={`mailto:${encodeURIComponent(c.email)}`}>{c.email}</a></p>}
+      {c.user_id!==user.id && onMessage && <button type="button" className="secondary" onClick={()=>onMessage(c.user_id)}>Nachricht schreiben</button>}
       {(c.user_id===user.id || user.role==='admin') && <div className="actions"><button type="button" className="secondary" disabled={busy} onClick={()=>edit(c)}>Bearbeiten</button><button type="button" className="secondary danger" disabled={busy} onClick={()=>{setRemoving(c);setEditing(null);setError('');setNotice('')}}>Entfernen</button></div>}
     </article>)}</div>
   </div></Container>

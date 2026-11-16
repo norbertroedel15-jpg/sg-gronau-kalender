@@ -751,3 +751,19 @@ button:disabled { opacity: .6; cursor: wait; }
 .handbook-chapter li { padding-left: .2rem; margin-bottom: .65rem; }
 .handbook-note { padding: .8rem 1rem; border-left: 3px solid var(--grass); background: #ffffffc9; font-size: .9rem; }
 @media(max-width:520px) { .handbook-dialog { padding: 1rem; } .handbook-dialog .contacts-heading { flex-wrap: wrap; } }
+
+.messages-dialog { width: min(68rem,calc(100% - 2rem)); }
+.mail-layout { display: grid; grid-template-columns: minmax(13rem,1fr) minmax(0,2fr); gap: 1.2rem; }
+.mail-sidebar,.mail-conversation { min-width: 0; display: grid; gap: .8rem; align-content: start; }
+.mail-threads { display: grid; gap: .5rem; max-height: 28rem; overflow-y: auto; }
+.mail-thread { display: grid; gap: .3rem; background: white; color: var(--pitch); border: 1px solid var(--line); border-radius: 6px; padding: .8rem; text-align: left; min-width: 0; }
+.mail-thread.is-active { border: 2px solid var(--grass); }
+.mail-thread span { white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.mail-history { display: grid; gap: .75rem; max-height: 25rem; overflow-y: auto; padding: .5rem; background: #e3efe9; border-radius: 8px; }
+.mail-bubble { background: white; padding: .8rem; border-radius: 8px; width: 92%; overflow-wrap: anywhere; }
+.mail-bubble.mine { background: #c9e4d7; justify-self: end; }
+.mail-bubble time { display: block; font-size: .75rem; color: var(--muted); margin: .25rem 0; }
+.mail-bubble p { white-space: pre-wrap; }
+.mail-conversation textarea { width: 100%; min-width: 0; padding: .8rem; font: inherit; border: 1px solid var(--line); border-radius: 5px; resize: vertical; }
+.mail-hint { color: var(--muted); font-size: .8rem; }
+@media(max-width:650px) { .mail-layout { grid-template-columns: 1fr; } .mail-threads { max-height: 10rem; } .messages-dialog { padding: 1rem; } .mail-history { max-height: 22rem; } }

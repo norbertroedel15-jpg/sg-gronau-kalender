@@ -101,3 +101,9 @@ npm run build
 ```
 
 Der Integrationstest prüft zwei getrennte Konten, gemeinsame Termine, Eingabeprüfung, Zugriffsschutz, fremde Herkunft, Bearbeitungskonflikte, Abmelden und Datenerhalt nach Neustart. Noch nicht enthalten: getrennte Lese-/Schreibrollen, Serientermine, automatische E-Mails und Mannschaftsverwaltung.
+
+### Internes Postfach (Cloudflare)
+
+Angemeldete Mitglieder öffnen „Nachrichten“ in der Kopfzeile oder „Nachricht schreiben“ im Kontaktbuch. Empfänger können auch ohne Kontakteintrag gewählt werden. Direkte Gespräche, Antworten, ungelesene Nachrichten und seitenweise ältere Nachrichten werden in D1 gespeichert (Migration `0007_messages.sql`). Nur die beteiligten Konten können den jeweiligen Verlauf über die API lesen; Administratoren haben kein zusätzliches Leserecht. Es gibt keinen E-Mail-Versand und keine Ende-zu-Ende-Verschlüsselung. Gesperrte Konten können weder lesen noch senden und keine neuen Nachrichten empfangen; der Verlauf bleibt für den anderen Gesprächsteilnehmer erhalten. Im sichtbaren Kalender werden neue Nachrichten etwa alle 20 Sekunden abgefragt. Das Handbuch beschreibt die Bedienung.
+
+Senden ist auf 100 Nachrichten pro Nutzer in 15 Minuten begrenzt. Eine Sende-ID verhindert doppelte Nachrichten bei unveränderten Wiederholungsanfragen. Nachrichten bleiben gespeichert; eine Löschfunktion ist nicht enthalten.

@@ -4,6 +4,7 @@ import EventForm from './EventForm.jsx'
 import EventTypes from './EventTypes.jsx'
 import Contacts from './Contacts.jsx'
 import Handbook from './Handbook.jsx'
+import Messages from './Messages.jsx'
 import Members from './Members.jsx'
 import BrandMark from './BrandMark.jsx'
 import {
@@ -57,6 +58,12 @@ export default function Calendar({ user, onLogout }) {
   const [editing, setEditing] = useState(null)
   const [membersOpen, setMembersOpen] = useState(false)
   const [handbookOpen,setHandbookOpen] = useState(false)
+  const [mailOpen,setMailOpen] = useState(false)
+  const [mailPeer,setMailPeer] = useState(null)
+  const [unread,setUnread] = useState(0)
+  const refreshUnread=useCallback(()=>api('messages/summary').then(r=>setUnread(r.unread)).catch(()=>{}),[])
+  useEffect(()=>{refreshUnread();const t=setInterval(()=>{if(!document.hidden)refreshUnread()},20000);return()=>clearInterval(t)},[refreshUnread])
+  function openMail(id=null){setMailPeer(id);setMailOpen(true)}
   const [deleting, setDeleting] = useState(false)
   const [busy, setBusy] = useState(false)
   const [filter, setFilter] = useState('')
@@ -136,6 +143,7 @@ export default function Calendar({ user, onLogout }) {
       <header className="cal-top">
         <BrandMark variant="header" />
         <div className="cal-user">
+          <button type="button" className="btn-ghost" onClick={()=>openMail()}>Nachrichten{unread>0 ? ` (${unread} ungelesen)` : ''}</button>
           <button type="button" className="btn-ghost" onClick={()=>setHandbookOpen(true)}>Handbuch</button>
           <button type="button" className="btn-ghost" onClick={()=>{document.getElementById('kontaktbuch')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});document.querySelector('#kontaktbuch input[type="search"]')?.focus({preventScroll:true})}}>Kontaktbuch</button>
           {user.role === 'admin' && typesSupported && <button type="button" className="btn-ghost" onClick={() => setTypesOpen(true)}>Terminarten verwalten</button>}
@@ -226,7 +234,7 @@ export default function Calendar({ user, onLogout }) {
           </div>
         </div>
 
-        <Contacts user={user} inline />
+        <Contacts user={user} inline onMessage={openMail} />
         </div>
         <aside className="side-panel">
           <h3>Termine im Monat</h3>
@@ -288,6 +296,7 @@ export default function Calendar({ user, onLogout }) {
       {editing && <EventForm recurringSupport={recurringSupport} types={types} event={editing} onClose={() => setEditing(null)} onSaved={r => { setEditing(null); setNotice(r.count ? `${r.count} Termine der Serie gespeichert.` : 'Termin gespeichert.'); refresh() }} />}
       {typesOpen && <EventTypes types={types} onClose={() => setTypesOpen(false)} onChanged={refresh} />}
 
+      {mailOpen && <Messages user={user} initialPeer={mailPeer} onClose={()=>{setMailOpen(false);refreshUnread()}} onUnreadChanged={refreshUnread} />}
       {handbookOpen && <Handbook onClose={()=>setHandbookOpen(false)} />}
       {membersOpen && <Members onClose={() => setMembersOpen(false)} />}
     </div>

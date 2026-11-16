@@ -769,3 +769,11 @@ button:disabled { opacity: .6; cursor: wait; }
 @media(max-width:650px) { .mail-layout { grid-template-columns: 1fr; } .mail-threads { max-height: 10rem; } .messages-dialog { padding: 1rem; } .mail-history { max-height: 22rem; } }
 
 .mail-read-status { display: block; margin-top: .6rem; color: var(--pitch); font-size: .78rem; font-weight: 600; }
+
+.mail-overview { margin: 1rem 1.5rem 0; padding: .9rem 1rem; display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; border: 1px solid var(--line); border-left: 4px solid var(--grass); border-radius: 8px; background: #fff; color: var(--pitch); }
+.mail-overview small { width: 100%; color: var(--muted); }
+.mail-pending { padding: .5rem .7rem; border-radius: 5px; background: #fff0ca; font-weight: 600; overflow-wrap: anywhere; }
+.mail-recipients { display: grid; gap: .6rem; max-height: 15rem; overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; padding: .8rem; }
+.mail-recipients label { overflow-wrap: anywhere; }
+.mail-recipients input { flex: 0 0 1.2rem; }
+@media(max-width:720px) { .mail-overview { margin: .75rem .75rem 0; } }

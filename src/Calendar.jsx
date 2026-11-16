@@ -61,7 +61,8 @@ export default function Calendar({ user, onLogout }) {
   const [mailOpen,setMailOpen] = useState(false)
   const [mailPeer,setMailPeer] = useState(null)
   const [unread,setUnread] = useState(0)
-  const refreshUnread=useCallback(()=>api('messages/summary').then(r=>setUnread(r.unread)).catch(()=>{}),[])
+  const [pendingMessages,setPendingMessages] = useState([])
+  const refreshUnread=useCallback(()=>api('messages/summary').then(r=>{setUnread(r.unread);setPendingMessages(r.pending||[])}).catch(()=>{}),[])
   useEffect(()=>{refreshUnread();const t=setInterval(()=>{if(!document.hidden)refreshUnread()},20000);return()=>clearInterval(t)},[refreshUnread])
   function openMail(id=null){setMailPeer(id);setMailOpen(true)}
   const [deleting, setDeleting] = useState(false)
@@ -155,6 +156,12 @@ export default function Calendar({ user, onLogout }) {
         </div>
       </header>
 
+      <section className="mail-overview" aria-label="Nachrichtenübersicht">
+        <strong>Dein Postfach</strong>
+        <button type="button" className="secondary" onClick={()=>openMail()}>{unread ? `${unread} ungelesene ${unread===1?'Nachricht für dich':'Nachrichten für dich'}` : 'Nachricht schreiben / Postfach öffnen'}</button>
+        {pendingMessages.map(p=><span className="mail-pending" key={p.id}>{p.count} ungelesene {p.count===1?'Nachricht':'Nachrichten'} an {p.name}</span>)}
+        <small>Deine gesendeten Nachrichten: Status sichtbar, Inhalt nur im privaten Gespräch.</small>
+      </section>
       <section className="cal-toolbar">
         <div className="month-nav">
           <button type="button" className="nav-btn" onClick={() => shiftMonth(-1)} aria-label="Vorheriger Monat">

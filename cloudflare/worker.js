@@ -151,7 +151,9 @@ async function handle(request, env) {
   }
   if (path === '/api/messages/summary' && request.method === 'GET') {
     const row=await db.prepare('SELECT COUNT(*) AS unread FROM messages WHERE recipient_id=? AND read_at IS NULL').bind(user.id).first()
-    return send(200,row)
+    const pending=await db.prepare(`SELECT u.id,u.name,COUNT(*) AS count FROM messages m JOIN users u ON u.id=m.recipient_id
+      WHERE m.sender_id=? AND m.read_at IS NULL GROUP BY u.id,u.name ORDER BY u.name COLLATE NOCASE`).bind(user.id).all()
+    return send(200,{...row,pending:pending.results})
   }
   if (path === '/api/messages' && request.method === 'GET') {
     const recipients=await db.prepare('SELECT id,name FROM users WHERE disabled=0 AND id<>? ORDER BY name COLLATE NOCASE,id').bind(user.id).all()
@@ -163,6 +165,21 @@ async function handle(request, env) {
       WHERE m.id=(SELECT MAX(x.id) FROM mine x WHERE x.peer_id=m.peer_id)
       ORDER BY m.id DESC`).bind(user.id,user.id,user.id,user.id).all()
     return send(200,{recipients:recipients.results,threads:threads.results})
+  }
+  if (path === '/api/messages/broadcast' && request.method === 'POST') {
+    const b=await json(request)
+    if (!Array.isArray(b.recipients)||!b.recipients.length||b.recipients.length>50||b.recipients.some(id=>!Number.isSafeInteger(id)||id===user.id)||new Set(b.recipients).size!==b.recipients.length) fail(400,'Bitte 1 bis 50 verschiedene Empfänger auswählen.')
+    if (typeof b.body!=='string'||!b.body.trim()||b.body.length>4000||typeof b.clientId!=='string'||!/^[a-f0-9-]{36}$/.test(b.clientId)) fail(400,'Bitte eine Nachricht mit höchstens 4000 Zeichen eingeben.')
+    const ids=[...b.recipients].sort((a,b)=>a-b),body=b.body.trim()
+    const signature=await digest(JSON.stringify({ids,body}))
+    const keys=ids.map(id=>`${b.clientId}:${signature}:${id}`)
+    // A single transaction inserts every private copy or none, including retry requests.
+    await rateLimit(db,`message-broadcast:${user.id}`,20)
+    const checks=ids.map(id=>db.prepare('SELECT id FROM users WHERE id=? AND disabled=0').bind(id))
+    const active=await db.batch(checks)
+    if (active.some(r=>!r.results.length)) fail(400,'Mindestens ein Empfänger ist nicht mehr freigeschaltet. Bitte Auswahl aktualisieren.')
+    const result=await db.batch(ids.map((id,i)=>db.prepare(`INSERT INTO messages(sender_id,recipient_id,body,created_at,client_id) VALUES(?,?,?,?,?) ON CONFLICT(sender_id,client_id) DO NOTHING`).bind(user.id,id,body,Date.now(),keys[i])))
+    return send(200,{ok:true,count:ids.length,inserted:result.reduce((n,r)=>n+r.meta.changes,0)})
   }
   const messageThread=path.match(/^\/api\/messages\/(\d+)(\/read)?$/)
   if (messageThread) {

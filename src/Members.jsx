@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api.js'
+import OutlookSetup from './OutlookSetup.jsx'
 
 export default function Members({ onClose }) {
   const dialog = useRef(null), linkInput = useRef(null)
@@ -12,6 +13,7 @@ export default function Members({ onClose }) {
   const [busy, setBusy] = useState(false)
   const [link, setLink] = useState(null)
   const [copied, setCopied] = useState(false)
+  const [mailStatus,setMailStatus] = useState(null)
   const load = useCallback(async () => {
     try {
       const r = await api('users'); setMembers(r.users)
@@ -30,15 +32,17 @@ export default function Members({ onClose }) {
   function clearNotice() { setError(''); setMessage(''); setCopied(false) }
   async function save(e) {
     e.preventDefault(); const form = e.currentTarget, body = Object.fromEntries(new FormData(form))
-    setBusy(true); clearNotice()
+    const sendMail=e.nativeEvent.submitter?.value==='email'
+    setBusy(true); clearNotice();setLink(null)
     try {
       const r = await api(invitationSupport ? 'invitations' : 'users', 'POST', body)
       form.reset()
       if (invitationSupport) {
-        setLink({...r, name:body.name}); setMessage('Einladung erstellt. Bitte den Link nur an diese Person weitergeben. Es wird keine E-Mail automatisch verschickt.')
+        setLink({...r, name:body.name}); setMessage('Einladung erstellt. Der Link bleibt hier zum Kopieren verfügbar.')
+        if(sendMail){const sent=await api('invitation-mail','POST',{url:r.url});setMessage(`Microsoft hat die Einladung an ${sent.recipient} zum Versand angenommen. Bitte bei Bedarf auch den Spamordner prüfen.`)}
       } else setMessage('Zugang angelegt. Bitte die Zugangsdaten persönlich weitergeben.')
       await load()
-    } catch(e) { setError(e.message) } finally { setBusy(false) }
+    } catch(e) { setError(e.message);await load() } finally { setBusy(false) }
   }
   async function issue(member) {
     setBusy(true); clearNotice(); setSelected(null); setLink(null)
@@ -61,6 +65,7 @@ export default function Members({ onClose }) {
       setSelected(null); setLink(null); await load()
     } catch(e) { setError(e.message) } finally { setBusy(false) }
   }
+  async function emailLink(){setBusy(true);clearNotice();try{const r=await api('invitation-mail','POST',{url:link.url});setMessage(`Microsoft hat die Einladung an ${r.recipient} zum Versand angenommen. Dies bestätigt noch nicht die Zustellung.`)}catch(e){setError(e.message)}finally{setBusy(false)}}
   async function copyLink() {
     try { await navigator.clipboard.writeText(link.url); setCopied(true) }
     catch { linkInput.current.focus(); linkInput.current.select(); setMessage('Der Link ist markiert. Bitte mit Strg+C kopieren.') }
@@ -68,11 +73,13 @@ export default function Members({ onClose }) {
   return <dialog ref={dialog} onCancel={onClose} aria-labelledby="members-title"><div className="edit-form">
     <h2 id="members-title">Vereinszugänge</h2>
     <p>{invitationSupport ? 'Du lädst Personen ein. Jede Person legt ihr eigenes Passwort fest. Alle angemeldeten Mitglieder können Termine anlegen, bearbeiten und löschen.' : 'Alle angemeldeten Mitglieder können Termine anlegen, bearbeiten und löschen.'}</p>
+    <OutlookSetup onStatusChange={setMailStatus} />
     {link && <section className="invite-result" aria-labelledby="invite-link-title">
       <h3 id="invite-link-title">Einladungslink für {link.name}</h3>
       <p>Gültig bis {new Date(link.expires).toLocaleString('de-DE')}, einmal verwendbar. Nur an die vorgesehene Person weitergeben.</p>
       <label>Einladungslink<input ref={linkInput} value={link.url} readOnly onFocus={e=>e.target.select()} /></label>
       <button type="button" className="btn-primary" onClick={copyLink}>{copied ? 'Link kopiert' : 'Link kopieren'}</button>
+      {mailStatus?.connected&&<button type="button" className="secondary" disabled={busy} onClick={emailLink}>Einladung per E-Mail senden</button>}
       <p>Der Link wird aus Sicherheitsgründen nur jetzt angezeigt. Falls du ihn verlierst, kannst du einen neuen erstellen.</p>
     </section>}
     {error && <p className="login-error" role="alert">{error}</p>}
@@ -83,7 +90,8 @@ export default function Members({ onClose }) {
       <label>Name<input name="name" required maxLength={100} /></label>
       <label>E-Mail<input name="email" type="email" required maxLength={254} autoComplete="off" /></label>
       {!invitationSupport && <label>Passwort (mindestens 12 Zeichen)<input name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" /></label>}
-      <button className="btn-primary" disabled={busy}>{busy ? 'Bitte warten …' : invitationSupport ? 'Einladungslink erstellen' : 'Zugang anlegen'}</button>
+      {invitationSupport&&mailStatus?.connected&&<button className="btn-primary" value="email" disabled={busy}>Einladung per E-Mail senden</button>}
+      <button className="secondary" value="link" disabled={busy}>{busy ? 'Bitte warten …' : invitationSupport ? 'Einladungslink erstellen' : 'Zugang anlegen'}</button>
     </form>}
     <h3>Angelegte Personen</h3>
     <ul className="member-list">{members.map(m => <li key={m.id}>

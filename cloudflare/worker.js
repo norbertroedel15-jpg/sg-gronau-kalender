@@ -1,3 +1,4 @@
+import { outlookRoute } from './outlook.js'
 import { weeklyDates } from '../shared/recurrence.js'
 import { digest, equalSecret, passwordHash, passwordMatches, randomToken } from './passwords.js'
 
@@ -158,6 +159,8 @@ async function handle(request, env) {
     await db.prepare('DELETE FROM sessions WHERE token=?').bind(token).run()
     return send(200,{}, { 'Set-Cookie':cookie(request,'',0) })
   }
+  const outlookResponse=await outlookRoute(request,env,db,user,url,{json,rateLimit,digest})
+  if(outlookResponse)return outlookResponse
   if (path === '/api/event-notices' && request.method === 'GET') {
     const [rows,total]=await db.batch([
       db.prepare(`SELECT n.*,e.id AS current_event_id,e.date AS current_date FROM event_notice_recipients r

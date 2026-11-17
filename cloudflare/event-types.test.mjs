@@ -7,7 +7,7 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare'
 
 test('Eigene Terminarten: Migration erhält Bestandsdaten, Rechte, Namen, Farben, Ausblenden und Konflikte', async () => {
   const dir=await mkdtemp(join(tmpdir(),'sg-types-'))
-  const options={...convertV4MiniflareOptions({modules:[{type:'ESModule',path:resolve('cloudflare/worker.js')},{type:'ESModule',path:resolve('cloudflare/passwords.js')},{type:'ESModule',path:resolve('shared/recurrence.js')}],compatibilityDate:'2026-11-08',d1Databases:{DB:'types-db'},bindings:{PASSWORD_PEPPER:'types-test-pepper-at-least-32-characters',SETUP_TOKEN:'types-test-setup-at-least-32-characters'}}),resourcePersistencePath:dir}
+  const options={...convertV4MiniflareOptions({modules:[{type:'ESModule',path:resolve('cloudflare/worker.js')},{type:'ESModule',path:resolve('cloudflare/passwords.js')},{type:'ESModule',path:resolve('cloudflare/outlook.js')},{type:'ESModule',path:resolve('shared/recurrence.js')}],compatibilityDate:'2026-11-08',d1Databases:{DB:'types-db'},bindings:{PASSWORD_PEPPER:'types-test-pepper-at-least-32-characters',SETUP_TOKEN:'types-test-setup-at-least-32-characters'}}),resourcePersistencePath:dir}
   let mf=new Miniflare(options)
   const req=(path,method='GET',body,cookie)=>mf.dispatchFetch(`https://calendar.example/api/${path}`,{method,headers:{...(body ? {'Content-Type':'application/json'} : {}),...(cookie ? {Cookie:cookie} : {})},...(body ? {body:JSON.stringify(body)} : {})})
   async function check(path,method,body,cookie,status) {const r=await req(path,method,body,cookie);assert.equal(r.status,status,await r.clone().text());return r.json()}

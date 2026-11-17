@@ -789,3 +789,8 @@ button:disabled { opacity: .6; cursor: wait; }
 .event-notice-toast > [role="status"] { font-weight: 700; margin-bottom: .65rem; color: var(--pitch); }
 .event-notice-toast > button { margin-top: .6rem; }
 @media(max-width:720px) { .event-notices { margin: .75rem .75rem 0; } }
+
+.outlook-setup { padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: #ffffffb3; display: grid; gap: .65rem; }
+.outlook-setup summary { cursor: pointer; color: var(--pitch); font-weight: 700; }
+.outlook-setup details p,.outlook-setup details ol { margin: .8rem 0; line-height: 1.6; }
+.outlook-setup code { font-size: 1.1rem; letter-spacing: .1em; }

@@ -5,6 +5,7 @@ import EventTypes from './EventTypes.jsx'
 import Contacts from './Contacts.jsx'
 import Handbook from './Handbook.jsx'
 import Messages from './Messages.jsx'
+import EventNotices from './EventNotices.jsx'
 import Members from './Members.jsx'
 import BrandMark from './BrandMark.jsx'
 import {
@@ -155,6 +156,7 @@ export default function Calendar({ user, onLogout }) {
         </div>
       </header>
 
+      <EventNotices onOpen={n=>{const [y,m]=(n.current_date||n.date).split('-').map(Number);setCursor(new Date(y,m-1,1));if(y===year&&m===month+1)refresh();setFilter('');setSelectedId(n.current_event_id);setDeleting(false);setNotice(`Neuer Termin: ${n.title} · ${n.type_name}`);setTimeout(()=>document.querySelector('.cal-layout')?.scrollIntoView({block:'start',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}),0)}} />
       <section className="mail-overview" aria-label="Nachrichtenübersicht">
         <strong>Dein Postfach</strong>
         <button type="button" className="secondary" onClick={()=>openMail()}>{unread ? `${unread} ungelesene ${unread===1?'Nachricht für dich':'Nachrichten für dich'}` : 'Nachricht schreiben / Postfach öffnen'}</button>

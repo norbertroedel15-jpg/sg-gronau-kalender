@@ -68,6 +68,15 @@ function typeData(body) {
   if (name.length > 60 || [...name].some(c=>c.charCodeAt(0)<32 || c.charCodeAt(0)===127)) fail(400,'Bitte einen gültigen Namen angeben.')
   return [name,name.toLocaleLowerCase('de-DE'),body.color.toLowerCase()]
 }
+function eventNoticeStatements(db,eventId,user,seriesId=null,count=1,until='') {
+  return [
+    db.prepare(`INSERT INTO event_notices(id,event_id,series_id,title,type_name,color,date,time,end_time,place,occurrence_count,until_date,created_by,created_at)
+      SELECT e.id,e.id,?,e.title,t.name,t.color,e.date,e.time,e.endTime,e.place,?,?,?,?
+      FROM events e JOIN event_types t ON t.id=e.type WHERE e.id=?`).bind(seriesId,count,until,user.name,Date.now(),eventId),
+    db.prepare(`INSERT INTO event_notice_recipients(notice_id,user_id)
+      SELECT n.id,u.id FROM event_notices n CROSS JOIN users u WHERE n.id=? AND u.disabled=0 AND u.id<>?`).bind(eventId,user.id)
+  ]
+}
 async function handle(request, env) {
   const url = new URL(request.url), path = url.pathname
   if (path === '/api/version' && request.method === 'GET') return send(200, {release:'contacts-v2'})
@@ -148,6 +157,22 @@ async function handle(request, env) {
   if (path === '/api/logout' && request.method === 'POST') {
     await db.prepare('DELETE FROM sessions WHERE token=?').bind(token).run()
     return send(200,{}, { 'Set-Cookie':cookie(request,'',0) })
+  }
+  if (path === '/api/event-notices' && request.method === 'GET') {
+    const [rows,total]=await db.batch([
+      db.prepare(`SELECT n.*,e.id AS current_event_id,e.date AS current_date FROM event_notice_recipients r
+        JOIN event_notices n ON n.id=r.notice_id
+        LEFT JOIN events e ON e.id=(SELECT ev.id FROM events ev WHERE ev.id=n.event_id OR (n.series_id IS NOT NULL AND ev.series_id=n.series_id) ORDER BY ev.date,ev.time,ev.id LIMIT 1)
+        WHERE r.user_id=? AND r.read_at IS NULL ORDER BY n.created_at DESC,n.id DESC LIMIT 50`).bind(user.id),
+      db.prepare('SELECT COUNT(*) AS total FROM event_notice_recipients WHERE user_id=? AND read_at IS NULL').bind(user.id)
+    ])
+    return send(200,{notices:rows.results,total:total.results[0].total})
+  }
+  const noticeMatch=path.match(/^\/api\/event-notices\/([a-f0-9]{32})\/read$/)
+  if (noticeMatch && request.method==='POST') {
+    const result=await db.prepare('UPDATE event_notice_recipients SET read_at=COALESCE(read_at,?) WHERE notice_id=? AND user_id=?').bind(Date.now(),noticeMatch[1],user.id).run()
+    if(!result.meta.changes)fail(404,'Hinweis nicht gefunden.')
+    return send(200,{ok:true})
   }
   if (path === '/api/messages/summary' && request.method === 'GET') {
     const row=await db.prepare('SELECT COUNT(*) AS unread FROM messages WHERE recipient_id=? AND read_at IS NULL').bind(user.id).first()
@@ -363,7 +388,8 @@ async function handle(request, env) {
       db.prepare(`INSERT INTO events(id,title,date,time,endTime,place,type,createdBy,series_id)
         SELECT json_extract(j.value,'$.id'),?,json_extract(j.value,'$.date'),?,?,?,?,?,?
         FROM json_each(?) j WHERE EXISTS(SELECT 1 FROM event_series WHERE id=?)`)
-        .bind(values[0],values[2],values[3],values[4],values[5],user.name,seriesId,JSON.stringify(occurrences),seriesId)
+        .bind(values[0],values[2],values[3],values[4],values[5],user.name,seriesId,JSON.stringify(occurrences),seriesId),
+      ...eventNoticeStatements(db,occurrences[0].id,user,seriesId,occurrences.length,dates.at(-1))
     ])
     if (!results[0].meta.changes) fail(409,'Die Terminart wurde ausgeblendet. Bitte neu laden.')
     return send(201,{seriesId,count:occurrences.length})
@@ -406,9 +432,10 @@ async function handle(request, env) {
   }
   if (path === '/api/events' && request.method === 'POST') {
     const values = await eventData(await json(request),db), id = randomToken(16)
-    const result = await db.prepare(`INSERT INTO events(id,title,date,time,endTime,place,type,createdBy)
-      SELECT ?,?,?,?,?,?,?,? FROM event_types WHERE id=? AND enabled=1`).bind(id,...values,user.name,values[5]).run()
-    if (!result.meta.changes) fail(409,'Die Terminart wurde ausgeblendet. Bitte eine andere wählen.')
+    const results = await db.batch([db.prepare(`INSERT INTO events(id,title,date,time,endTime,place,type,createdBy)
+      SELECT ?,?,?,?,?,?,?,? FROM event_types WHERE id=? AND enabled=1`).bind(id,...values,user.name,values[5]),
+      ...eventNoticeStatements(db,id,user)])
+    if (!results[0].meta.changes) fail(409,'Die Terminart wurde ausgeblendet. Bitte eine andere wählen.')
     return send(201,{id})
   }
   const match = path.match(/^\/api\/events\/([a-f0-9]{32})$/)
